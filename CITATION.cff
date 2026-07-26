@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite the article below."
+title: "Universal Realisation of Independence Systems by Acyclic Single-Source Unsplittable-Flow Gadgets"
+type: article
+version: 1.0.0
+date-released: 2026-07-26
+authors:
+  - family-names: Afrasyab
+    given-names: Koyar
+    email: koyar@kinvectum.com
+repository-code: "https://github.com/KAVentures/stable-set-flow-gadgets"
+url: "https://github.com/KAVentures/stable-set-flow-gadgets"
+preferred-citation:
+  type: article
+  title: "Universal Realisation of Independence Systems by Acyclic Single-Source Unsplittable-Flow Gadgets"
+  authors:
+    - family-names: Afrasyab
+      given-names: Koyar
+  year: 2026
+  month: 7

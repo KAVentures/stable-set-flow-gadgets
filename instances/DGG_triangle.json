@@ -1,0 +1,21 @@
+{
+  "name": "supplied_DGG_triangle_audit_instance",
+  "source": "s",
+  "vertices": ["s", "u", "v", "w", "t1", "t2", "t3"],
+  "terminals": [
+    {"id":"t1","demand":"15"},
+    {"id":"t2","demand":"10"},
+    {"id":"t3","demand":"15"}
+  ],
+  "arcs": [
+    {"id":"s_t1","tail":"s","head":"t1","x":"10","cost":"2"},
+    {"id":"s_t2","tail":"s","head":"t2","x":"6","cost":"3"},
+    {"id":"s_u","tail":"s","head":"u","x":"24","cost":"0"},
+    {"id":"u_t3","tail":"u","head":"t3","x":"10","cost":"2"},
+    {"id":"u_v","tail":"u","head":"v","x":"14","cost":"0"},
+    {"id":"v_t1","tail":"v","head":"t1","x":"5","cost":"0"},
+    {"id":"v_w","tail":"v","head":"w","x":"9","cost":"0"},
+    {"id":"w_t2","tail":"w","head":"t2","x":"4","cost":"0"},
+    {"id":"w_t3","tail":"w","head":"t3","x":"5","cost":"0"}
+  ]
+}
