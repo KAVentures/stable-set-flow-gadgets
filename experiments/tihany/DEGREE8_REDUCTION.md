@@ -1,28 +1,24 @@
 # An order-independent reduction from a degree-eight vertex
 
-This note records a structural consequence that is independent of the order-17 computation.
-It does not eliminate degree eight by itself.
+## Status and dependency
 
-## Proposition
+The first part of this note is unconditional. The final `P5` / `C4`-with-leaf split is conditional on the exact two-type degree-eight neighbourhood audit supplied with the project. It is theorem-discovery input and is **not** used in the direct order-17 core certificate unless that audit is independently reproduced and its local-colouring quantifiers are checked against the stated theorem.
 
-Let `G` be a hypothetical noncomplete double-critical 6-chromatic graph and let `x` be a vertex of degree eight. Then there is a maximal independent set `I` and a 5-vertex-critical graph
+## Unconditional proposition
+
+Let `G` be a hypothetical noncomplete double-critical 6-chromatic graph and let `x` be a vertex of degree eight. Then there is a maximal independent set `I` such that
 
 ```text
 H = G-I
 ```
 
-such that
+is 5-vertex-critical and
 
 ```text
-d_H(x)=5,
+d_H(x)=5.
 ```
 
-and the induced graph on `N_H(x)` is one of the following two five-vertex graphs:
-
-1. `P5`;
-2. a `C4` with one pendant vertex.
-
-## Proof
+### Proof
 
 The standard local results give
 
@@ -49,29 +45,35 @@ and hence
 d_{G-I}(x)=8-3=5.
 ```
 
-The complement of every maximal independent set in a double-critical 6-chromatic graph is 5-vertex-critical, so `H=G-I` has the required criticality.
+The complement of every maximal independent set in a double-critical 6-chromatic graph is 5-vertex-critical, so `H=G-I` has the required criticality. `QED`
 
-The exact degree-eight neighbourhood classification leaves two graphs, with graph6 strings
+## Conditional refinement from the supplied audit
+
+The supplied exact degree-eight neighbourhood audit reports two surviving graph6 strings,
 
 ```text
 GEnfbW
 GEjfrw
 ```
 
-respectively. Each has exactly two independent triples. Direct inspection gives:
+and each has exactly two independent triples. Direct graph6 inspection gives:
 
 - in `GEnfbW`, deleting either independent triple leaves `P5`;
-- in `GEjfrw`, deleting either independent triple leaves a `C4` with a pendant vertex.
+- in `GEjfrw`, deleting either independent triple leaves a `C4` with one pendant vertex.
 
-Thus `H[N_H(x)]` has one of the two displayed forms. `QED`
+Consequently, **once the audit's exhaustiveness and extension quantifiers have been independently validated**, the proposition refines to
+
+```text
+H[N_H(x)] is P5 or C4 with one pendant vertex.
+```
 
 ## Why this matters
 
-A full proof can now split cleanly:
+A possible proof can then split into:
 
-1. prove that neither five-vertex configuration can occur as the neighbourhood of a degree-five vertex in a 5-critical complement carrying the double-critical attachment colourings; this would establish `delta(G)>=9`;
+1. prove that neither five-vertex configuration can occur as the neighbourhood of a degree-five vertex in a 5-critical complement carrying the ambient double-critical deletion colourings; this would establish `delta(G)>=9`;
 2. deal with the remaining minimum-degree-at-least-nine case.
 
-The first step is an ambient precolouring-extension problem, not a classification of the isolated seven-vertex local escape object. If `F=G[N(x)]` and `R=G-N[x]`, then for every `y in N(x)` the graph `G-x-y` has a four-colouring whose restriction to `F-y` is constrained by the common-rainbow theorem. The obstruction lies in whether all eight boundary precolourings can be extended through the same ambient graph `R`.
+The first step is an ambient precolouring-extension problem, not a classification of the isolated local escape object. If `F=G[N(x)]` and `R=G-N[x]`, then for every `y in N(x)` the graph `G-x-y` has a four-colouring whose restriction to `F-y` is constrained by the common-rainbow theorem. The obstruction lies in whether all boundary precolourings can be extended through the same ambient graph `R`.
 
-This is the order-independent theorem-mining target used by the ablation experiments.
+This conditional refinement is not part of the core SAT correctness path.
