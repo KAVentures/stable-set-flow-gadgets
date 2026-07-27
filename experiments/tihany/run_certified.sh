@@ -24,12 +24,15 @@ fi
   make -j"$(nproc)"
 )
 
+DRAT_TRIM_COMMIT=effa1dcce85c878236f8313133dff1a2b766cd7c
 if [[ ! -d "$TOOLS/drat-trim/.git" ]]; then
   git clone https://github.com/marijnheule/drat-trim.git "$TOOLS/drat-trim"
 fi
 (
   cd "$TOOLS/drat-trim"
-  git checkout effa1dccb6bc8d3e9d6f7f3ca2f086c75d70c0b8 2>/dev/null || true
+  git fetch --depth 1 origin "$DRAT_TRIM_COMMIT"
+  git checkout --detach "$DRAT_TRIM_COMMIT"
+  test "$(git rev-parse HEAD)" = "$DRAT_TRIM_COMMIT"
   git rev-parse HEAD | tee "$OUT/drat-trim.commit"
   make -j"$(nproc)"
 )
