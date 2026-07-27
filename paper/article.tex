@@ -435,7 +435,11 @@ The accompanying package contains a provenance-labelled reproduction of Rybin's 
 \end{verbatim}
 The suite enumerates all paths and routings of both finite certificates, checks the parameter identities and inequalities for \(k=1,\ldots,200\), and runs adversarial mutation tests. It requires no third-party Python package.
 
-\bibliographystyle{plain}
-\bibliography{references}
+\IfFileExists{article.bbl}{
+  \input{article.bbl}
+}{
+  \bibliographystyle{plain}
+  \bibliography{references}
+}
 
 \end{document}

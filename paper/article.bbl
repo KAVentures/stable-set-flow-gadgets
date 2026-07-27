@@ -1,0 +1,57 @@
+\begin{thebibliography}{1}
+
+\bibitem{dgg1999}
+Yefim Dinitz, Naveen Garg, and Michel~X. Goemans.
+\newblock On the single-source unsplittable flow problem.
+\newblock {\em Combinatorica}, 19(1):17--41, 1999.
+
+\bibitem{golumbic1985}
+Martin~Charles Golumbic and Robert~E. Jamison.
+\newblock The edge intersection graphs of paths in a tree.
+\newblock {\em Journal of Combinatorial Theory, Series B}, 38:8--22, 1985.
+
+\bibitem{almoghrabi2025}
+Mohammed Majthoub~Almoghrabi, Martin Skutella, and Philipp Warode.
+\newblock Integer and unsplittable multiflows in series-parallel digraphs.
+\newblock In {\em Integer Programming and Combinatorial Optimization}, volume
+  15620 of {\em Lecture Notes in Computer Science}, pages 427--441. Springer,
+  2025.
+
+\bibitem{morell2022}
+Sarah Morell and Martin Skutella.
+\newblock Single source unsplittable flows with arc-wise lower and upper
+  bounds.
+\newblock {\em Mathematical Programming}, 192(1):477--496, 2022.
+
+\bibitem{rybintranscript2026}
+Dmitry Rybin.
+\newblock Counterexample to dinitz conjecture.
+\newblock \url{https://chatgpt.com/share/6a60b2eb-0b64-83ee-9c76-7931ca1de063},
+  July 2026.
+\newblock Shared GPT-5.6 Pro investigation transcript; accessed 27 July 2026.
+
+\bibitem{rybin2026}
+Dmitry Rybin.
+\newblock Dinitz--garg--goemans conjecture is false.
+\newblock \url{https://x.com/DmitryRybin1/status/2079904005652893709}, July
+  2026.
+\newblock Public announcement on X; URL resolved through X's oEmbed service on
+  27 July 2026.
+
+\bibitem{suvak2021}
+Zeynep {\c{S}}uvak, {\.I}~Kuban Alt{\i}nel, and Necati Aras.
+\newblock Minimum cost flow problem with conflicts.
+\newblock {\em Networks}, 78:421--442, 2021.
+
+\bibitem{swamy2026}
+Chaitanya Swamy, Vera Traub, Laura Vargas~Koch, and Rico Zenklusen.
+\newblock Unsplittable cost flows from unweighted error-bounded variants.
+\newblock In {\em Proceedings of the 2026 SIAM Symposium on Simplicity in
+  Algorithms}, pages 512--523, 2026.
+
+\bibitem{traub2026}
+Vera Traub, Laura Vargas~Koch, and Rico Zenklusen.
+\newblock Single-source unsplittable flows in planar and bounded-genus graphs.
+\newblock {\em Mathematical Programming}, 2026.
+
+\end{thebibliography}

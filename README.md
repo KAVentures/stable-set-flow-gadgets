@@ -109,7 +109,9 @@ pdflatex -interaction=nonstopmode -halt-on-error article.tex
 ```
 
 The committed PDF is provided for convenient reading. arXiv submissions should
-use the TeX source and figure rather than the generated PDF.
+use the TeX source, `article.bbl`, and figure rather than the generated PDF.
+The bundled `.bbl` makes the submission independent of arXiv's BibTeX pass;
+`references.bib` remains included as the editable bibliography source.
 
 ## Citation
 
