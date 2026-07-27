@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independent exact audit of the triangle instance in the supplied investigation."""
+"""Independent exact audit of Dmitry Rybin's triangle counterexample."""
 from fractions import Fraction as F
 from collections import defaultdict, deque
 from itertools import product
@@ -37,6 +37,6 @@ def main(path):
             mask=tuple(i for i,t in enumerate(terms) if choice[i]==zero[t][0]); masks.add(mask); good.append(cost)
     assert masks=={(),(0,),(1,),(2,)}
     assert min(good)==60
-    print('PASS: supplied triangle independently audited; paths=6, routings=8, fractional cost=58, good minimum=60')
+    print("PASS: Rybin triangle independently audited; paths=6, routings=8, fractional cost=58, good minimum=60")
 if __name__=='__main__':
-    ap=argparse.ArgumentParser(); ap.add_argument('instance',nargs='?',default='instances/DGG_triangle.json'); a=ap.parse_args(); main(a.instance)
+    ap=argparse.ArgumentParser(); ap.add_argument('instance',nargs='?',default='instances/Rybin_triangle.json'); a=ap.parse_args(); main(a.instance)

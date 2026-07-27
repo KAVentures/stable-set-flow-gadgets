@@ -1,8 +1,17 @@
-# Audit of the supplied DGG investigation
+# Provenance and exact audit of Rybin's triangle counterexample
 
-The supplied investigation was treated as an untrusted candidate source. Its final
-triangle instance was reconstructed solely from the arc list, not from its declared
-path decomposition.
+The instance in `instances/Rybin_triangle.json` is attributed to Dmitry Rybin,
+who announced it publicly on 22 July 2026:
+
+- X announcement: <https://x.com/DmitryRybin1/status/2079904005652893709>
+- Shared GPT-5.6 Pro transcript:
+  <https://chatgpt.com/share/6a60b2eb-0b64-83ee-9c76-7931ca1de063>
+
+This repository reproduces the instance for independent exact verification and
+does not claim authorship of it. The instance was treated as an untrusted
+candidate source: the verifier reconstructs every source-terminal path solely
+from the arc list rather than trusting a declared path decomposition or the
+announcement's conclusion.
 
 The independent verifier establishes:
 
@@ -13,8 +22,14 @@ The independent verifier establishes:
 - the fractional cost is exactly `58`;
 - every additive-`D` capacity-good routing costs at least `60`.
 
-The universal realisation and odd-cycle theorems in the paper do not depend on the
-triangle's claimed literature priority. The triangle was used as a methodological
-seed: it showed that mandatory baseline load can create an incompatibility not
-captured by ordinary path intersection, while the earlier failed constructions
-identified borrowed-prefix closure as the central adversarial issue.
+Rybin's triangle is the immediate methodological and historical antecedent of
+the article. It shows that additive-D load bounds can make three zero-cost
+detours behave as the stable sets of `K3`. The article explicitly reframes its
+universal construction as a generalisation of that mechanism. The universal
+proof does not depend on trusting the announcement, because the triangle and the
+new construction are checked separately.
+
+The public announcement is not a conventional peer-reviewed publication.
+Nevertheless, the exact finite certificate directly refutes the cost-preserving
+conjecture as formulated: its fractional cost is `58`, while every
+additive-`15`-good unsplittable routing costs at least `60`.

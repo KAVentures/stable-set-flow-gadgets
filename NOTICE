@@ -1,0 +1,16 @@
+Provenance notice
+=================
+
+The factual flow instance in `instances/Rybin_triangle.json` reproduces the
+seven-vertex counterexample publicly announced by Dmitry Rybin on 22 July 2026:
+
+https://x.com/DmitryRybin1/status/2079904005652893709
+https://chatgpt.com/share/6a60b2eb-0b64-83ee-9c76-7931ca1de063
+
+It is included for independent exact verification. Koyar Afrasyab and this
+repository do not claim authorship of that construction. See
+`docs/INPUT_AUDIT.md` for the detailed provenance and audit record.
+
+The repository's MIT license applies to original verification code and generated
+instances contributed by this project. The CC BY 4.0 license applies to the
+article, figures, and original documentation as described in `LICENSE-PAPER`.

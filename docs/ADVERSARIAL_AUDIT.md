@@ -59,7 +59,11 @@ rejected.
 
 ## Remaining epistemic qualification
 
-The mathematical theorem is self-contained. The novelty review is necessarily
-non-exhaustive: the targeted search found adjacent EPT/EPG and externally imposed
-conflict-flow literatures, but no equivalent theorem. Priority should not be
-claimed without expert bibliographic review.
+The mathematical theorem is self-contained, but the historical mechanism is not
+presented as original to this article. Rybin's 22 July 2026 triangle
+counterexample is cited as the immediate antecedent, and the copied instance is
+provenance-labelled. The novelty review remains non-exhaustive: conflict encoding
+through shared capacities is close to standard modelling practice, and the
+targeted search cannot establish priority. The article is therefore framed as a
+short generalisation note and makes no flagship or definitive novelty claim
+without expert bibliographic review.

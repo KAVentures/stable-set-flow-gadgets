@@ -4,13 +4,31 @@
 
 Reproducibility repository for:
 
-> Koyar Afrasyab, *Universal Realisation of Independence Systems by Acyclic
-> Single-Source Unsplittable-Flow Gadgets* (2026).
+> Koyar Afrasyab, *From Rybin's Triangle Counterexample to Universal
+> Independence-System Realisations in Unsplittable Flow* (2026).
 
-The paper proves that every finite loopless independence system can be strongly
-realised by an acyclic single-source unsplittable-flow gadget. It also gives a
-uniform odd-cycle family with an exact cost-preserving additive-congestion
-threshold and an exhaustive rational certificate for `C5`.
+This research note generalises the stable-set mechanism in Dmitry Rybin's
+seven-vertex counterexample to Goemans' cost-preserving unsplittable-flow
+conjecture. It proves that every finite loopless independence system can be
+strongly realised by an acyclic single-source unsplittable-flow gadget. It also
+gives a uniform odd-cycle family with an exact cost-preserving
+additive-congestion threshold and an exhaustive rational certificate for `C5`.
+
+## Relationship to Rybin's counterexample
+
+The triangle instance in this repository is **not an original construction of
+this project**. It reproduces the counterexample publicly announced by Dmitry
+Rybin on 22 July 2026:
+
+- [X announcement](https://x.com/DmitryRybin1/status/2079904005652893709)
+- [Shared GPT-5.6 Pro transcript](https://chatgpt.com/share/6a60b2eb-0b64-83ee-9c76-7931ca1de063)
+
+The repository independently derives all paths and checks all eight routings,
+confirming fractional cost `58` and minimum additive-`15`-good integral cost
+`60`. The article is framed as a generalisation of that mechanism, not as the
+source of the triangle construction. The announcement is not yet a conventional
+peer-reviewed publication, but the exact finite certificate refutes the
+cost-preserving conjecture as stated.
 
 ## Results
 
@@ -29,10 +47,11 @@ threshold and an exhaustive rational certificate for `C5`.
 │   ├── article.pdf
 │   ├── article.tex
 │   ├── article.docx
+│   ├── references.bib
 │   └── figures/c5.png
 ├── instances/
 │   ├── C5.json
-│   └── DGG_triangle.json
+│   └── Rybin_triangle.json
 ├── verification/
 │   ├── verify_c5.py
 │   ├── verify_symbolic.py
@@ -58,7 +77,7 @@ Run the complete verification suite:
 
 The suite:
 
-1. audits the supplied triangle instance;
+1. independently audits Rybin's provenance-labelled triangle instance;
 2. derives every path and enumerates all 59,049 routings of the exact `C5`
    certificate;
 3. checks the symbolic odd-cycle identities for `k=1,...,200`; and
@@ -69,7 +88,7 @@ Individual checks:
 ```bash
 python3 verification/verify_c5.py instances/C5.json
 python3 verification/verify_symbolic.py --max-k 200
-python3 verification/verify_triangle.py instances/DGG_triangle.json
+python3 verification/verify_triangle.py instances/Rybin_triangle.json
 python3 verification/test_mutations.py
 ```
 
@@ -103,6 +122,8 @@ file.
   (`LICENSE-CODE`).
 - Paper, figures, and documentation: Creative Commons Attribution 4.0
   International (`LICENSE-PAPER`).
+- Rybin's reproduced triangle instance carries an explicit provenance exception;
+  see `NOTICE` and `docs/INPUT_AUDIT.md`.
 
 ## Contact
 
