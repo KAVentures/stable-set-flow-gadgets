@@ -95,15 +95,19 @@ jobs:
           g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
             experiments/tihany/verify_rook_pattern_elimination.cpp \
             -o experiments/tihany/verify_rook_pattern_elimination
-      - name: Check every finite fact used by the symbolic proof
+      - name: Reproduce cross-mask and four-outside reductions
         run: |
           experiments/tihany/verify_rook_pattern_elimination \
             | tee experiments/tihany/rook-pattern-elimination.log
-          grep -Fx 'pattern 0 checked' experiments/tihany/rook-pattern-elimination.log
-          grep -Fx 'pattern 2 checked' experiments/tihany/rook-pattern-elimination.log
-          grep -Fx 'pattern 3 checked' experiments/tihany/rook-pattern-elimination.log
-          grep -Fx 'pattern 4 checked' experiments/tihany/rook-pattern-elimination.log
-          grep -Fx 'pattern 6 checked' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'cross_masks 4096' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'rainbow_survivors 16' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'survivor_masks 0 1 16 17 64 65 128 129 512 513 528 529 576 577 640 641' \
+            experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'allowed_neighbourhoods 1864' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'maximal_neighbourhoods 13' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'four_outside_feasible 5' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'residual_masks 0 16 17 64 128' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'symbolic_facts PASS' experiments/tihany/rook-pattern-elimination.log
           grep -Fx 'status PASS' experiments/tihany/rook-pattern-elimination.log
       - name: Hash proof note, checker and output
         run: |
