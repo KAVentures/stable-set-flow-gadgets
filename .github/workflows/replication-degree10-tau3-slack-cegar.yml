@@ -1,0 +1,49 @@
+name: Replication degree 10 tau3 residual-hole CEGAR
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'replication_degree10/tau3_slack_cegar.py'
+      - '.github/workflows/replication-degree10-tau3-slack-cegar.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  solve:
+    strategy:
+      fail-fast: false
+      max-parallel: 11
+      matrix:
+        centre_weight: [0,1,2,3,4,5,6,7,8,9,10]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install SAT backend
+        run: python -m pip install --upgrade pip python-sat
+      - name: Run residual-hole cutting-plane search
+        run: python replication_degree10/tau3_slack_cegar.py --centre-weight ${{ matrix.centre_weight }} --iterations 10000 --packing-batch 10000 --cube-batch 250 | tee replication_degree10/tau3_slack_cegar_${{ matrix.centre_weight }}.log
+      - name: Rename result
+        if: always()
+        run: |
+          if [ -f replication_degree10/tau3_cegar_${{ matrix.centre_weight }}.json ]; then
+            mv replication_degree10/tau3_cegar_${{ matrix.centre_weight }}.json replication_degree10/tau3_slack_cegar_${{ matrix.centre_weight }}.json
+          fi
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tau3-slack-cegar-${{ matrix.centre_weight }}
+          path: |
+            replication_degree10/tau3_slack_cegar_${{ matrix.centre_weight }}.log
+            replication_degree10/tau3_slack_cegar_${{ matrix.centre_weight }}.json
+          if-no-files-found: warn
