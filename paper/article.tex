@@ -17,7 +17,7 @@
   linkcolor=black,
   citecolor=black,
   urlcolor=blue!55!black,
-  pdftitle={From Rybin's Triangle Counterexample to Universal Independence-System Realisations in Unsplittable Flow},
+  pdftitle={Independence-System Realisations in Single-Source Unsplittable Flow},
   pdfauthor={Koyar Afrasyab}
 }
 
@@ -39,8 +39,7 @@
 \setlist[enumerate]{leftmargin=1.8em,itemsep=2pt,topsep=4pt}
 \captionsetup{font=small,labelfont=bf}
 
-\title{\textbf{From Rybin's Triangle Counterexample to Universal\\
-Independence-System Realisations in Unsplittable Flow}}
+\title{\textbf{Independence-System Realisations in Single-Source Unsplittable Flow}}
 \author{Koyar Afrasyab\\
 \small\href{mailto:koyar@kinvectum.com}{koyar@kinvectum.com}}
 \date{27 July 2026}
@@ -49,7 +48,7 @@ Independence-System Realisations in Unsplittable Flow}}
 \maketitle
 
 \begin{abstract}
-Rybin's recently announced seven-vertex counterexample to Goemans' cost-preserving single-source unsplittable-flow conjecture uses additive-congestion constraints to make three zero-cost detours behave as the stable sets of a triangle. This note isolates and generalises that mechanism. We introduce a path-closed notion of realising an independence system by the zero-cost choices of primary terminals in a directed acyclic flow instance. The definition quantifies over every directed source--terminal path and therefore remains valid under prefix borrowing, suffix splicing, and hybrid routes.
+Additive-congestion constraints in single-source unsplittable flow can enforce stable-set structure. This note isolates and generalises that mechanism. We introduce a path-closed notion of realising an independence system by the zero-cost choices of primary terminals in a directed acyclic flow instance. The definition quantifies over every directed source--terminal path and therefore remains valid under prefix borrowing, suffix splicing, and hybrid routes.
 
 Our main result extends the triangle mechanism: every finite loopless independence system has a polynomial-size realisation, measured in the incidence size of its minimal forbidden sets. Hence every finite simple graph, and more generally every hypergraph independence system without singleton forbidden hyperedges, is representable by an acyclic single-source gadget. We then specialise the construction to odd cycles. For \(C_{2k+1}\), a uniform rational family produces a fractional cheap-selection vector that violates the odd-cycle inequality. A potential shift converts a signed connector separator into nonnegative arc costs and gives the exact cost-preserving additive-congestion threshold
 \[
@@ -64,21 +63,20 @@ For \(C_5\), an exact certificate independently derives all source--terminal pat
 
 In the single-source unsplittable-flow problem, a common source supplies several terminals with unrelated positive demands. A fractional flow may split a terminal's demand over several paths, whereas an unsplittable routing must choose a single source--terminal path for each demand. The classical theorem of Dinitz, Garg, and Goemans shows that a feasible fractional flow can always be rounded while increasing the load on each arc by at most the maximum demand \cite{dgg1999}. Goemans subsequently conjectured that the same additive guarantee could be achieved without increasing total cost.
 
-On 22 July 2026, Dmitry Rybin publicly announced a seven-vertex counterexample obtained in a shared GPT-5.6 Pro investigation \cite{rybin2026,rybintranscript2026}. Its three demands are \(15,10,15\); the exhibited fractional flow has cost \(58\), while every additive-\(15\)-good unsplittable routing has cost at least \(60\). The machine-readable copy in this repository is a reproduction of that instance, not an original construction of this article. Our independent exact verifier derives all six source--terminal paths from the arc list and checks all eight routings. The announcement is not a conventional peer-reviewed publication, but the finite certificate directly refutes the cost-preserving statement as formulated.
+On 22 July 2026, Dmitry Rybin publicly announced a seven-vertex counterexample obtained in a shared GPT-5.6 Pro investigation \cite{rybin2026,rybintranscript2026}. Its three demands are \(15,10,15\); the exhibited fractional flow has cost \(58\), while every additive-\(15\)-good unsplittable routing has cost at least \(60\). The machine-readable copy in this repository is a reproduction of that instance, not an original construction of this article. Our independent exact verifier derives all six source--terminal paths from the arc list and checks all eight routings. Thus the refutation used here follows from the reproduced finite certificate and its independent exact audit, not from the authority or eventual status of the announcement.
 
-This article takes Rybin's triangle mechanism as its starting point and asks a structural question: which discrete choice systems can be encoded by the additive-congestion inequalities of a single-source instance? A primary terminal is interpreted as ``selected'' when it uses its unique zero-cost path. Auxiliary terminals enforce incompatibilities through ordinary shared arc loads. The central difficulty is path closure: a valid construction cannot prescribe a short menu of routes and ignore other paths that the graph itself creates. Any source prefix may combine with any reachable suffix, so a sound proof must survive all borrowed and hybrid routes.
+The certificate exhibits a triangle conflict mechanism and motivates a structural question: which discrete choice systems can be encoded by the additive-congestion inequalities of a single-source instance? A primary terminal is interpreted as ``selected'' when it uses its unique zero-cost path. Auxiliary terminals enforce incompatibilities through ordinary shared arc loads. The central difficulty is path closure: a valid construction cannot prescribe a short menu of routes and ignore other paths that the graph itself creates. Any source prefix may combine with any reachable suffix, so a sound proof must survive all borrowed and hybrid routes.
 
 \subsection{Contributions}
 
 The main contributions are as follows.
 
 \begin{enumerate}
-  \item We independently certify Rybin's triangle counterexample from its arc list and record its provenance explicitly.
   \item We formalise the mechanism through \emph{strong realisation}, which quantifies over every actual directed path in the gadget rather than over a prescribed path decomposition.
-  \item We generalise the triangle mechanism with an explicit acyclic construction that strongly realises every finite loopless independence system. Its size is linear in the ground-set size plus the total incidence size of the minimal forbidden sets.
+  \item We give an explicit acyclic construction that strongly realises every finite loopless independence system. Its size is linear in the ground-set size plus the total incidence size of the minimal forbidden sets.
   \item We derive a uniform odd-cycle family whose fractional cheap-selection vector violates the stable-set odd-cycle inequality.
   \item We construct nonnegative arc costs and determine the exact cost-preserving additive-congestion threshold of the family.
-  \item We supply an exact \(C_5\) certificate and an all-path, all-routing verifier based solely on rational arithmetic.
+  \item We independently certify the provenance-labelled triangle instance and supply an exact \(C_5\) certificate, using all-path, all-routing verifiers based solely on rational arithmetic.
 \end{enumerate}
 
 \subsection{Scope}
@@ -87,9 +85,11 @@ Rybin's triangle already refutes the additive-\(D\) cost conjecture. The odd-cyc
 
 \section{Related work}
 
-Dinitz, Garg, and Goemans proved that every single-source fractional flow admits an unsplittable routing whose arc load is at most the fractional load plus the largest demand \cite{dgg1999}. Morell and Skutella developed a short proof and a lower-bound counterpart, and formulated a stronger simultaneous-deviation perspective \cite{morell2022}. Traub, Vargas Koch, and Zenklusen obtained results for planar and bounded-genus graphs \cite{traub2026}. Almoghrabi, Skutella, and Warode proved strong decomposition results for series-parallel digraphs \cite{almoghrabi2024}. Swamy, Traub, Vargas Koch, and Zenklusen showed how an unweighted error-bounded variant implies a relaxed cost guarantee \cite{swamy2026}. These works predate Rybin's July 2026 announcement and naturally describe the cost-preserving statement as a conjecture; they should not be read as evidence of its status after the counterexample appeared.
+Dinitz, Garg, and Goemans proved that every single-source fractional flow admits an unsplittable routing whose arc load is at most the fractional load plus the largest demand \cite{dgg1999}. Morell and Skutella developed a short proof and a lower-bound counterpart, and formulated a stronger simultaneous-deviation perspective \cite{morell2022}. Majthoub Almoghrabi, Skutella, and Warode proved strong decomposition results for series-parallel digraphs \cite{almoghrabi2025}. Swamy, Traub, Vargas Koch, and Zenklusen showed how an unweighted error-bounded variant implies a relaxed cost guarantee \cite{swamy2026}.
 
-Rybin's counterexample is the immediate antecedent of this note \cite{rybin2026,rybintranscript2026}. Its shared spine enforces a triangle conflict system: each zero-cost detour represents a selected vertex, and any pair overloads one spine arc under the additive-\(D\) bounds. Our construction replaces the nested triangle spine with one incidence resource per element--forbidden-set pair and one auxiliary demand per minimal forbidden set. In this precise sense, the universal theorem is a generalisation of the publicly announced triangle mechanism.
+Traub, Vargas Koch, and Zenklusen proved that planar acyclic instances admit the simultaneous upper and lower additive-\(D\) bounds without costs, and the cost-preserving conclusion with additive-\(2D\) bounds \cite{traub2026}. The reproduced seven-vertex graph is itself planar: its underlying undirected graph suppresses to \(K_4\) after the three degree-two terminals are removed. The exact checker verifies this subdivision certificate. Consequently, the audited instance rules out the cost-preserving additive-\(D\) statement even for planar acyclic graphs, but it does not contradict either the cost-free additive-\(D\) theorem or the cost-preserving additive-\(2D\) theorem.
+
+The publicly announced triangle instance is the immediate antecedent of this note \cite{rybin2026,rybintranscript2026}. Its shared spine enforces a triangle conflict system: each zero-cost detour represents a selected vertex, and any pair overloads one spine arc under the additive-\(D\) bounds. Our construction replaces the nested triangle spine with one incidence resource per element--forbidden-set pair and one auxiliary demand per minimal forbidden set. This attribution identifies the methodological seed; the results below concern the resulting general construction and its certificates.
 
 The gadgets also touch graph-representation and conflict-flow literatures. EPT and EPG representations define adjacency through intersections among chosen paths \cite{golumbic1985}. Minimum-cost flow with conflicts adds an external conflict relation on arcs \cite{suvak2021}. Here the forbidden system is induced internally by fractional baseline loads, auxiliary demands, and additive arc inequalities. Encoding conflicts with shared capacities is a familiar modelling pattern, so the contribution claimed here is limited to the stated path-closed construction, proof, threshold calculation, and exact certificates. A targeted search found no directly equivalent theorem, but that search is not an exhaustive priority determination.
 
@@ -414,7 +414,7 @@ All arithmetic uses Python's exact \texttt{Fraction} type. The finite certificat
 
 \section{Discussion and limitations}
 
-Starting from Rybin's triangle counterexample, the universal construction shows that additive load inequalities can encode arbitrary finite independence systems, provided singleton selection remains feasible. This expressive power comes from three ingredients: a private zero-cost chain for each decision, an incidence resource for each participation in a minimal obstruction, and an auxiliary unit demand for each obstruction. The exit-dominator property makes the mechanism robust to path splicing.
+The universal construction shows that additive load inequalities can encode arbitrary finite independence systems, provided singleton selection remains feasible. This expressive power comes from three ingredients: a private zero-cost chain for each decision, an incidence resource for each participation in a minimal obstruction, and an auxiliary unit demand for each obstruction. The exit-dominator property makes the mechanism robust to path splicing.
 
 The construction size is polynomial in an explicit minimal-forbidden-set description, not necessarily in a more compressed oracle or graph representation. An independence system can have exponentially many minimal forbidden sets, and the theorem does not avoid that representation cost.
 
@@ -422,7 +422,7 @@ The exact threshold is proved only for the uniform symmetric odd-cycle family. I
 
 \section{Conclusion}
 
-Rybin's triangle counterexample reveals that additive-congestion inequalities can enforce a stable-set obstruction. This note generalises that mechanism: every finite loopless independence system can be embedded into the cheap-choice structure of an acyclic single-source unsplittable-flow instance in a manner closed under all actual graph paths. Odd cycles turn the qualitative construction into a scoped cost-congestion calculation, and the \(C_5\) certificate demonstrates that the generalised phenomenon is reproducible at finite scale.
+Additive-congestion inequalities can enforce a stable-set obstruction: every finite loopless independence system can be embedded into the cheap-choice structure of an acyclic single-source unsplittable-flow instance in a manner closed under all actual graph paths. Odd cycles turn the qualitative construction into a scoped cost-congestion calculation, and the \(C_5\) certificate demonstrates that the generalised phenomenon is reproducible at finite scale.
 
 The construction suggests two natural directions. First, one may seek compressed gadgets for structured forbidden systems. Second, one may investigate which additional graph restrictions---planarity, bounded genus, bounded treewidth, or series-parallel structure---limit the independence systems that can be realised and thereby constrain cost-congestion lower bounds.
 

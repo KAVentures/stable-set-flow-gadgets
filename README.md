@@ -4,8 +4,8 @@
 
 Reproducibility repository for:
 
-> Koyar Afrasyab, *From Rybin's Triangle Counterexample to Universal
-> Independence-System Realisations in Unsplittable Flow* (2026).
+> Koyar Afrasyab, *Independence-System Realisations in Single-Source
+> Unsplittable Flow* (2026).
 
 This research note generalises the stable-set mechanism in Dmitry Rybin's
 seven-vertex counterexample to Goemans' cost-preserving unsplittable-flow
@@ -25,10 +25,10 @@ Rybin on 22 July 2026:
 
 The repository independently derives all paths and checks all eight routings,
 confirming fractional cost `58` and minimum additive-`15`-good integral cost
-`60`. The article is framed as a generalisation of that mechanism, not as the
-source of the triangle construction. The announcement is not yet a conventional
-peer-reviewed publication, but the exact finite certificate refutes the
-cost-preserving conjecture as stated.
+`60`. It also checks that the underlying graph is a subdivision of `K4`, hence
+planar. The article is framed as a generalisation of the mechanism, not as the
+source of the triangle construction. Its mathematical conclusion rests on the
+independently audited certificate, not on the announcement's authority.
 
 ## Results
 
@@ -36,6 +36,7 @@ cost-preserving conjecture as stated.
 - Stable-set realisation for every finite simple graph.
 - A uniform `C_(2k+1)` family violating the odd-cycle inequality.
 - Exact threshold `tau = 1 - bq`.
+- A planar `K4`-subdivision audit of the seven-vertex triangle certificate.
 - Exhaustive verification of all `3^10 = 59,049` routings of the `C5`
   certificate.
 

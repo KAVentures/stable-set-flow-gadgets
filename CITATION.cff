@@ -1,8 +1,8 @@
 cff-version: 1.2.0
 message: "If you use this work, please cite the article below."
-title: "From Rybin's Triangle Counterexample to Universal Independence-System Realisations in Unsplittable Flow"
+title: "Independence-System Realisations in Single-Source Unsplittable Flow"
 type: article
-version: 1.1.0
+version: 1.2.0
 date-released: 2026-07-27
 authors:
   - family-names: Afrasyab
@@ -12,7 +12,7 @@ repository-code: "https://github.com/KAVentures/stable-set-flow-gadgets"
 url: "https://github.com/KAVentures/stable-set-flow-gadgets"
 preferred-citation:
   type: article
-  title: "From Rybin's Triangle Counterexample to Universal Independence-System Realisations in Unsplittable Flow"
+  title: "Independence-System Realisations in Single-Source Unsplittable Flow"
   authors:
     - family-names: Afrasyab
       given-names: Koyar

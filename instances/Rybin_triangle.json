@@ -5,7 +5,8 @@
     "announced": "2026-07-22",
     "announcement_url": "https://x.com/DmitryRybin1/status/2079904005652893709",
     "shared_transcript_url": "https://chatgpt.com/share/6a60b2eb-0b64-83ee-9c76-7931ca1de063",
-    "note": "Reproduced for independent exact verification; this repository does not claim authorship of the instance."
+    "announcement_url_verified": "2026-07-27 via X oEmbed",
+    "note": "Reproduced for independent exact verification; this repository does not claim authorship of the instance. Its underlying undirected graph is a subdivision of K4 and therefore planar."
   },
   "source": "s",
   "vertices": ["s", "u", "v", "w", "t1", "t2", "t3"],
