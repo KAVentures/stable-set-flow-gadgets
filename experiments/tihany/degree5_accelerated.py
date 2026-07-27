@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""Accelerated exact search using the proved degree-five independence theorem.
+"""Accelerated exact search using the two proved low-degree independence theorems.
 
-This is theorem-discovery acceleration only.  The direct core and ultracore remain
-the certification paths.  Since accelerated mode already enforces delta(H)>=5,
-a Boolean high_h can exactly encode d_H(h)>=6; every H-edge must then have at
-least one high endpoint.
+This is theorem-discovery acceleration only. The direct core and ultracore remain
+the certification paths.
+
+* accelerated mode already enforces delta(H)>=5, so a Boolean high_h exactly
+  encodes d_H(h)>=6; every H-edge must have at least one high endpoint;
+* the core enforces delta(G)>=8, so a Boolean deg8_v exactly encodes d_G(v)=8;
+  every graph edge must have at least one endpoint outside the degree-eight set.
 """
 from __future__ import annotations
 
@@ -16,11 +19,12 @@ import core_search
 BaseModel = core_search.ExactModel
 
 
-class DegreeFiveModel(BaseModel):
+class StructuralModel(BaseModel):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.accelerated:
             self._add_degree_five_independence()
+            self._add_degree_eight_independence()
 
     def _add_degree_five_independence(self) -> None:
         high = {}
@@ -43,10 +47,27 @@ class DegreeFiveModel(BaseModel):
                 assert edge_hq is not None
                 self.add_clause([-edge_hq, high[h], high[q]])
 
+    def _add_degree_eight_independence(self) -> None:
+        degree_eight = {}
+        for v in self.vertices:
+            incident = [
+                self.edge(v, w)
+                for w in self.vertices
+                if w != v and self.edge(v, w) is not None
+            ]
+            flag = self._name_var(("gdeg8", v), f"gdeg8_{v}")
+            degree_eight[v] = flag
+            # With the core's d_G(v)>=8: flag <-> d_G(v)=8.
+            self._card_atmost(incident, 8, guard=(flag,))
+            self._card_atleast(incident, 9, guard=(-flag,))
+
+        for (u, v), edge_uv in self.edge_vars.items():
+            self.add_clause([-edge_uv, -degree_eight[u], -degree_eight[v]])
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", default="artifacts/degree5-accelerated")
+    parser.add_argument("--out", default="artifacts/structural-accelerated")
     parser.add_argument("--solver", choices=("cadical", "glucose"), default="cadical")
     parser.add_argument("--max-iterations", type=int, default=1_000_000)
     parser.add_argument("--max-seconds", type=float, default=0.0)
@@ -57,7 +78,7 @@ def main() -> int:
     args.common_rainbow = True
 
     original = core_search.ExactModel
-    core_search.ExactModel = DegreeFiveModel
+    core_search.ExactModel = StructuralModel
     try:
         return core_search.run(args)
     finally:
