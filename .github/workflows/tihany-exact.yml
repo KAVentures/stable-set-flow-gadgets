@@ -1,0 +1,130 @@
+name: Tihany exact order-17 search
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact SAT dependencies
+        run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile independent verifier
+        run: g++ -O3 -std=c++17 -Wall -Wextra -pedantic experiments/tihany/verify_graph.cpp -o experiments/tihany/verify_graph
+      - name: Run regression tests
+        working-directory: experiments/tihany
+        run: python tests.py
+      - name: Smoke-build direct core and solve briefly
+        run: |
+          set +e
+          python experiments/tihany/core_search.py --mode core --out artifacts/smoke-core --max-seconds 30
+          status=$?
+          set -e
+          case "$status" in 0|10|20) ;; *) exit "$status";; esac
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-validation
+          path: artifacts/smoke-core
+          retention-days: 30
+
+  core-cegar:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile independent verifier
+        run: g++ -O3 -std=c++17 -Wall -Wextra -pedantic experiments/tihany/verify_graph.cpp -o experiments/tihany/verify_graph
+      - name: Run direct defining-problem CEGAR
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/core_search.py \
+              --mode core \
+              --out artifacts/core \
+              --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Verify any decoded candidate independently
+        if: always()
+        run: |
+          if [[ -f artifacts/core/candidate.edges ]]; then
+            python experiments/tihany/verify_graph.py artifacts/core/candidate.edges --output artifacts/core/python-independent.json
+            experiments/tihany/verify_graph artifacts/core/candidate.edges | tee artifacts/core/cpp-independent.log
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-core-cegar
+          path: artifacts/core
+          retention-days: 90
+
+  accelerated-cegar:
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Run accelerated theorem-discovery CEGAR
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/core_search.py \
+              --mode accelerated \
+              --common-rainbow \
+              --out artifacts/accelerated \
+              --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-accelerated-cegar
+          path: artifacts/accelerated
+          retention-days: 90
+
+  core-certificate:
+    needs: core-cegar
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: tihany-core-cegar
+          path: artifacts/core
+      - name: Produce and independently check DRAT and LRAT certificates
+        run: |
+          if [[ ! -f artifacts/core/static_core.cnf ]]; then
+            echo 'Core CEGAR did not converge to UNSAT in this run; no certificate attempted.'
+            exit 0
+          fi
+          bash experiments/tihany/run_certified.sh artifacts/core/static_core.cnf artifacts/core/certificate
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-core-certificate
+          path: artifacts/core
+          retention-days: 90
