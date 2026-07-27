@@ -7,8 +7,10 @@ on:
     paths:
       - 'experiments/tihany/DEGREE5_INDEPENDENCE.md'
       - 'experiments/tihany/DEGREE8_INDEPENDENCE.md'
+      - 'experiments/tihany/ROOK_INTERFACE_ELIMINATION.md'
       - 'experiments/tihany/verify_adjacent_degree5_independent.cpp'
       - 'experiments/tihany/verify_adjacent_degree8.cpp'
+      - 'experiments/tihany/verify_rook_pattern_elimination.cpp'
       - '.github/workflows/tihany-structure.yml'
   workflow_dispatch:
 
@@ -81,4 +83,39 @@ jobs:
           path: |
             experiments/tihany/adjacent-degree8.log
             experiments/tihany/adjacent-degree8.sha256
+          retention-days: 90
+
+  rook-pattern-elimination:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile the residual-interface checker
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_rook_pattern_elimination.cpp \
+            -o experiments/tihany/verify_rook_pattern_elimination
+      - name: Check every finite fact used by the symbolic proof
+        run: |
+          experiments/tihany/verify_rook_pattern_elimination \
+            | tee experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'pattern 0 checked' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'pattern 2 checked' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'pattern 3 checked' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'pattern 4 checked' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'pattern 6 checked' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'status PASS' experiments/tihany/rook-pattern-elimination.log
+      - name: Hash proof note, checker and output
+        run: |
+          sha256sum \
+            experiments/tihany/ROOK_INTERFACE_ELIMINATION.md \
+            experiments/tihany/verify_rook_pattern_elimination.cpp \
+            experiments/tihany/rook-pattern-elimination.log \
+            | tee experiments/tihany/rook-pattern-elimination.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tihany-rook-pattern-elimination
+          path: |
+            experiments/tihany/rook-pattern-elimination.log
+            experiments/tihany/rook-pattern-elimination.sha256
           retention-days: 90
