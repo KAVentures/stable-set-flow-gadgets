@@ -1,11 +1,6 @@
 name: Replication degree 10 computation
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - 'replication_degree10/**'
-      - '.github/workflows/replication-degree10.yml'
   workflow_dispatch:
 
 permissions:
