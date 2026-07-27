@@ -1,18 +1,19 @@
-# Elimination of the residual degree-eight/degree-nine rook interface
+# Elimination of the residual degree-eight/degree-nine exceptional interface
 
 ## Scope and dependency
 
-This note concerns the order-17 case. It starts from the preceding finite local
-classification:
+This note concerns the order-17 case. It starts from the finite local classification
+certified independently in `DEGREE8_DEGREE9_INTERFACE.md`:
 
 > If a degree-eight vertex `0` is adjacent to a degree-nine vertex `1`, their two
 > completed neighbourhoods have one exceptional rooted 13-vertex interface, up to
 > rooted isomorphism.
 
-That 67-type local classification remains the external dependency of this note. The
-steps below—from the unique interface onward—are independently reproduced by the
-self-contained verifier `verify_rook_pattern_elimination.cpp` and do not use the
-SAT/CEGAR completion runs or floating-point optimization.
+The steps below—from that unique interface onward—are independently reproduced by the
+self-contained verifier `verify_rook_pattern_elimination.cpp`. They do not use the
+SAT/CEGAR completion runs or floating-point optimization. The filename retains the
+historical word `rook`, but the degree-nine neighbourhood is graph6 `HqolhhX`, not the
+`3 x 3` rook graph.
 
 We use the standard necessary properties of a hypothetical noncomplete double-critical
 6-chromatic graph:
@@ -150,9 +151,13 @@ Therefore masks `16,17,64,128` are impossible.
 
 ## Consequence
 
-Subject only to the preceding 67-type local classification, an order-17 counterexample
-cannot contain an edge joining a degree-eight vertex to a degree-nine vertex. Together
-with degree-eight independence:
+Combining the independently certified 67-type interface classification with the exact
+cross-mask reduction and the two symbolic contradictions proves:
+
+> **Order-17 degree-eight/degree-nine exclusion.** An order-17 counterexample cannot
+> contain an edge joining a degree-eight vertex to a degree-nine vertex.
+
+Together with degree-eight independence:
 
 > In an order-17 counterexample, every neighbour of a degree-eight vertex has degree
 > at least ten.
@@ -162,19 +167,15 @@ degree-eight neighbourhood types and eliminate degree eight altogether in order 
 
 ## Verification boundary
 
-`verify_rook_pattern_elimination.cpp` is self-contained from the fixed 13-vertex
-interface onward. It:
+Two separate C++ programs cover the finite portions:
 
-- reconstructs the interface directly as bitsets;
-- enumerates all 4096 cross masks;
-- uses exact DSATUR-style searches for the deletion-rainbow and local
-  three-colourability tests;
-- enumerates all 2048 possible outside traces;
-- verifies the counts `1864` and `13`;
-- checks all 1820 four-trace multisets;
-- obtains exactly the five residual masks;
-- checks every finite incidence and degree fact used in the two symbolic arguments.
+1. `verify_degree8_degree9_interface.cpp` generates all 67 admissible degree-nine
+   neighbourhoods, scans all 4656 compatible amalgams, and identifies the unique rooted
+   13-vertex interface;
+2. `verify_rook_pattern_elimination.cpp` starts from that interface, enumerates all
+   4096 cross masks, all 2048 outside traces and all 1820 four-trace multisets, and
+   checks every finite incidence used in the symbolic proof.
 
-The verifier does not replace the prose contradiction and does not certify the earlier
-67-type classification. A separate independent certificate for that classification is
-the remaining trust boundary for the degree-eight/degree-nine theorem.
+Neither program replaces the prose contradictions. The broader imported dependency is
+the independently certified classification of the two possible degree-eight
+neighbourhoods.
