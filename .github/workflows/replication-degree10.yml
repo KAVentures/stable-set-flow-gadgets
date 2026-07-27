@@ -1,0 +1,39 @@
+name: Replication degree 10 computation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'replication_degree10/**'
+      - '.github/workflows/replication-degree10.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install exact SAT backend
+        run: python -m pip install --upgrade pip python-sat
+      - name: Run augmented degree-10 benchmark
+        run: python replication_degree10/benchmark.py | tee replication_degree10/benchmark.log
+      - name: Upload benchmark records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: replication-degree10-benchmark
+          path: |
+            replication_degree10/benchmark.log
+            replication_degree10/benchmark_result.json
+          if-no-files-found: warn
