@@ -1,0 +1,73 @@
+name: Conway 99 certified search
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  solve-case:
+    name: rooted orbit case ${{ matrix.case }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      fail-fast: false
+      matrix:
+        case: [0, 1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: conway99-certified-search-20260727
+      - name: Build Kissat and DRAT-trim
+        shell: bash
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 --branch rel-4.0.4 https://github.com/arminbiere/kissat.git /tmp/kissat
+          (cd /tmp/kissat && ./configure && make -C build -j2)
+          git clone --depth 1 https://github.com/marijnheule/drat-trim.git /tmp/drat-trim
+          make -C /tmp/drat-trim -j2
+      - name: Generate exact rooted CNF
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p results
+          python research/conway99/generate_case.py \
+            --case '${{ matrix.case }}' \
+            --out results/case.cnf \
+            --meta results/case.json | tee results/generator.log
+          sha256sum results/case.cnf results/case.json > results/SHA256SUMS
+      - name: Solve and verify
+        shell: bash
+        run: |
+          set -uo pipefail
+          cd results
+          set +e
+          /tmp/kissat/build/kissat --no-binary --time=19500 case.cnf case.drat > solver.log 2>&1
+          rc=$?
+          set -e
+          echo "kissat_exit=$rc" | tee status.txt
+          if [ "$rc" -eq 10 ]; then
+            python ../research/conway99/verify_model.py \
+              --solver-log solver.log --meta case.json --output adjacency.txt | tee verifier.log
+            echo SAT_VERIFIED >> status.txt
+          elif [ "$rc" -eq 20 ]; then
+            /tmp/drat-trim/drat-trim case.cnf case.drat > proofcheck.log 2>&1
+            grep -q 'VERIFIED' proofcheck.log
+            echo UNSAT_VERIFIED >> status.txt
+            zstd -T0 -19 --rm case.drat
+          else
+            echo UNKNOWN_OR_LIMIT >> status.txt
+            exit 2
+          fi
+          sha256sum * >> SHA256SUMS || true
+      - name: Upload certificate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conway99-case-${{ matrix.case }}
+          path: results/
+          compression-level: 1
+          retention-days: 90
