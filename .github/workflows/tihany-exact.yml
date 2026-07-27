@@ -4,6 +4,12 @@ on:
   push:
     branches:
       - research/tihany-exact-core
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'experiments/tihany/**'
+      - '.github/workflows/tihany-exact.yml'
   workflow_dispatch:
 
 permissions:
