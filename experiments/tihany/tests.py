@@ -2,18 +2,22 @@
 from __future__ import annotations
 
 import itertools
+import json
 import tempfile
 from pathlib import Path
 
 import networkx as nx
 from pysat.solvers import Cadical195
 
+from audit_static import audit
 from core_search import (
     ExactModel,
+    cut_record,
     dsatur_k_colouring,
     maximum_independent_set_size,
     plain_k_colouring,
     verify_colouring,
+    write_dimacs,
 )
 
 
@@ -56,6 +60,20 @@ def test_generic_deletion_module_on_k6() -> None:
         assert solver.solve(), "the generic deletion-colouring module must accept fixed K6"
 
 
+def test_common_rainbow_module_on_k6() -> None:
+    model = ExactModel(
+        n=6,
+        independent=(),
+        min_degree=None,
+        alpha_bound=None,
+        attachment_bounds=None,
+        common_rainbow=True,
+    )
+    k6 = adjacency(6, itertools.combinations(range(6), 2))
+    with Cadical195(bootstrap_with=fixed_formula(model, k6)) as solver:
+        assert solver.solve(), "the KPT common-rainbow module must accept fixed K6"
+
+
 def test_valid_five_colour_cut_eliminates_fixed_k6_minus_edge() -> None:
     edges = [e for e in itertools.combinations(range(6), 2) if e != (0, 1)]
     graph = adjacency(6, edges)
@@ -75,6 +93,41 @@ def test_valid_five_colour_cut_eliminates_fixed_k6_minus_edge() -> None:
     clauses = fixed_formula(model, graph) + [list(cut)]
     with Cadical195(bootstrap_with=clauses) as solver:
         assert not solver.solve(), "a valid colouring cut must eliminate its fixed source graph"
+
+
+def test_static_cut_ledger_auditor() -> None:
+    edges = [e for e in itertools.combinations(range(6), 2) if e != (0, 1)]
+    graph = adjacency(6, edges)
+    model = ExactModel(
+        n=6,
+        independent=(),
+        min_degree=None,
+        alpha_bound=None,
+        attachment_bounds=None,
+    )
+    colouring = dsatur_k_colouring(graph, range(6), 5)
+    assert colouring is not None
+    clause = model.edge_cut_from_colouring(colouring)
+    record = cut_record("G_not_5_colourable", colouring, clause)
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        cuts = root / "cuts.jsonl"
+        static = root / "static.cnf"
+        cuts.write_text(json.dumps(record, sort_keys=True) + "\n")
+        write_dimacs(static, [*model.cnf.clauses, list(clause)], model.pool.top)
+        result = audit(model, "core", cuts, static)
+        assert result["status"] == "AUDITED"
+        assert result["unique_cuts"] == 1
+
+        bad = dict(record)
+        bad["clause"] = []
+        cuts.write_text(json.dumps(bad, sort_keys=True) + "\n")
+        try:
+            audit(model, "core", cuts, static)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("tampered cut ledger was accepted")
 
 
 def exact_chromatic_at_most(adj, k):
@@ -119,7 +172,9 @@ def main() -> None:
     tests = [
         test_colouring_checkers,
         test_generic_deletion_module_on_k6,
+        test_common_rainbow_module_on_k6,
         test_valid_five_colour_cut_eliminates_fixed_k6_minus_edge,
+        test_static_cut_ledger_auditor,
         test_graph_atlas_through_seven_vertices,
         test_order17_core_builds_and_has_expected_primary_variables,
     ]
