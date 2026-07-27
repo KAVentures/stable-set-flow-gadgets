@@ -1,0 +1,50 @@
+name: Tihany structural verifiers
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - 'experiments/tihany/DEGREE5_INDEPENDENCE.md'
+      - 'experiments/tihany/verify_adjacent_degree5_independent.cpp'
+      - '.github/workflows/tihany-structure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adjacent-degree-five:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile independent structural verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_adjacent_degree5_independent.cpp \
+            -o experiments/tihany/verify_adjacent_degree5_independent
+      - name: Reproduce the complete gluing census
+        run: |
+          experiments/tihany/verify_adjacent_degree5_independent \
+            | tee experiments/tihany/adjacent-degree5.log
+          grep -Fx 'local_decompositions 4' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'compatible_gluings 160' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'intersection_2 80' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'intersection_3 80' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'survivors 0' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'status PASS' experiments/tihany/adjacent-degree5.log
+      - name: Hash structural certificate sources and output
+        run: |
+          sha256sum \
+            experiments/tihany/DEGREE5_INDEPENDENCE.md \
+            experiments/tihany/verify_adjacent_degree5_independent.cpp \
+            experiments/tihany/adjacent-degree5.log \
+            | tee experiments/tihany/adjacent-degree5.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tihany-adjacent-degree-five
+          path: |
+            experiments/tihany/adjacent-degree5.log
+            experiments/tihany/adjacent-degree5.sha256
+          retention-days: 90
