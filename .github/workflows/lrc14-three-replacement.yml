@@ -1,0 +1,32 @@
+name: LRC14 exact three-replacement search
+
+on:
+  pull_request:
+    paths:
+      - 'research/lrc14/**'
+      - '.github/workflows/lrc14-three-replacement.yml'
+
+jobs:
+  exact-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile exact search
+        run: g++ -O3 -std=c++20 -Wall -Wextra -pedantic research/lrc14/three_replacement_exact.cpp -o lrc14_three
+      - name: Run exhaustive shard
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p out
+          ./lrc14_three ${{ matrix.shard }} 8 out/result_${{ matrix.shard }}.json 2>&1 | tee out/log_${{ matrix.shard }}.txt
+      - name: Upload exact result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lrc14-three-shard-${{ matrix.shard }}
+          path: out/

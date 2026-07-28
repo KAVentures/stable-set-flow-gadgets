@@ -1,0 +1,30 @@
+name: LRC14 exact four-replacement search
+on:
+  pull_request:
+    paths:
+      - 'research/lrc14/four_replacement_exact.cpp'
+      - '.github/workflows/lrc14-four-replacement.yml'
+jobs:
+  exact-search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile
+        run: g++ -O3 -std=c++20 -Wall -Wextra research/lrc14/four_replacement_exact.cpp -o lrc14_four
+      - name: Exhaustive shard
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p out
+          ./lrc14_four ${{ matrix.shard }} 16 out/result_${{ matrix.shard }}.json 2>&1 | tee out/log_${{ matrix.shard }}.txt
+      - name: Upload result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lrc14-four-shard-${{ matrix.shard }}
+          path: out/
