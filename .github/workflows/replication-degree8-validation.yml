@@ -33,7 +33,7 @@ jobs:
         run: |
           mkdir -p results
           set +e
-          python replication_degree10_ci/general_cegar_v2.py \
+          python replication_degree10_ci/general_cegar_v3.py \
             --d 8 --index ${{ matrix.index }} \
             --iterations 250 --solve-timeout 1500 \
             --strict-batch 5000 --cube-batch 5000 \
