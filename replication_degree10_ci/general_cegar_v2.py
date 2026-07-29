@@ -2,10 +2,11 @@
 """Sound wrapper around general_cegar.py.
 
 The first validation run exposed a PySAT API mismatch: CaDiCaL does not support
-solve_limited/clear_interrupt.  We use ordinary CaDiCaL solve calls and let the
-GitHub Actions job timeout bound wall time.  This wrapper also adds the complete
-one-pair decrement hierarchy implied by entrywise minimality of the violating
-weight vector.
+solve_limited/clear_interrupt. We use ordinary CaDiCaL solve calls and let the
+GitHub Actions job timeout bound wall time. This wrapper also adds the complete
+one-pair decrement hierarchy implied by entrywise minimality: after decrementing
+a,b units in the two elements of one complementary pair, every cover loses at
+most a+b while that pair cover loses exactly a+b, fixing the new cover value.
 """
 from __future__ import annotations
 
