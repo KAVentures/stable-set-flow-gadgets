@@ -1,0 +1,54 @@
+name: Replication degree 8 exact validation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'replication_degree10_ci/**'
+      - '.github/workflows/replication-degree8-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  branch:
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        index: [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install exact dependencies
+        run: python -m pip install --upgrade pip python-sat sympy
+      - name: Run exact branch search
+        id: search
+        shell: bash
+        run: |
+          mkdir -p results
+          set +e
+          python replication_degree10_ci/general_cegar_v4.py \
+            --d 8 --index ${{ matrix.index }} \
+            --iterations 250 --solve-timeout 1500 \
+            --strict-batch 5000 --cube-batch 5000 \
+            --output results \
+            2>&1 | tee results/branch_${{ matrix.index }}.log
+          rc=${PIPESTATUS[0]}
+          echo "solver_rc=$rc" >> "$GITHUB_OUTPUT"
+          rm -f results/*.cnf
+          if [ "$rc" -eq 20 ]; then exit 0; fi
+          if [ "$rc" -eq 10 ]; then exit 2; fi
+          exit 1
+      - name: Upload exact record
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: degree8-branch-${{ matrix.index }}
+          path: results/
+          if-no-files-found: error
