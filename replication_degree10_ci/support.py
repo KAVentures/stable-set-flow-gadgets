@@ -54,6 +54,12 @@ def exact_count(enc, variables, target):
             forbid(enc, variables, bits)
 
 
+def allowed_count(enc, variables, lo, hi):
+    for bits in itertools.product((0, 1), repeat=len(variables)):
+        if not (lo <= sum(bits) <= hi):
+            forbid(enc, variables, bits)
+
+
 def add_single_decrement_residual_holes(enc):
     """Necessary conditions from entrywise minimality of a gap-one witness.
 
@@ -90,6 +96,55 @@ def add_single_decrement_residual_holes(enc):
 
     return {
         "witnesses": witnesses,
+        "variables": enc.var_count - start_v,
+        "clauses": enc.clause_count - start_c,
+    }
+
+
+def add_pair_decrement_hierarchy(enc):
+    """Encode every packing forced by decrementing one complementary pair.
+
+    If a units are removed from capacity i and b units from capacity bar(i),
+    q=a+b with 1 <= q < tau, then the pair cover has weight tau-q.  Every cover
+    loses at most q, hence the new covering number is exactly tau-q.  Since the
+    original violating weight is entrywise minimal, the reduced instance cannot
+    violate MFMC and therefore has an integral packing of tau-q members.
+    """
+    start_v, start_c = enc.var_count, enc.clause_count
+    witnesses = rows_total = 0
+    for target in range(enc.d):
+        positive = enc.w[target]
+        negative = enc.tau - positive
+        for dec_pos in range(positive + 1):
+            for dec_neg in range(negative + 1):
+                q = dec_pos + dec_neg
+                if q == 0 or q >= enc.tau:
+                    continue
+                packing_size = enc.tau - q
+                witnesses += 1
+                rows_total += packing_size
+                rows = [[enc.new_var() for _ in range(enc.d)]
+                        for _ in range(packing_size)]
+
+                for row in rows:
+                    for p in range(1 << enc.d):
+                        enc.add_clause([enc.x[p]] + mismatch_row(row, p))
+
+                for j in range(enc.d):
+                    column = [row[j] for row in rows]
+                    if j == target:
+                        exact_count(enc, column, positive - dec_pos)
+                    else:
+                        lo = max(0, enc.w[j] - q)
+                        hi = min(packing_size, enc.w[j])
+                        allowed_count(enc, column, lo, hi)
+
+                for r in range(len(rows) - 1):
+                    enc.add_lex_geq(rows[r], rows[r + 1])
+
+    return {
+        "witnesses": witnesses,
+        "rows": rows_total,
         "variables": enc.var_count - start_v,
         "clauses": enc.clause_count - start_c,
     }
