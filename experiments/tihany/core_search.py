@@ -122,7 +122,7 @@ def plain_k_colouring(adj: Sequence[int], vertices: Iterable[int], k: int) -> Op
             del colour[v]
         return False
 
-    if search():
+    if search(0):
         ans = dict(colour)
         assert verify_colouring(adj, ans, verts, k)
         return ans
