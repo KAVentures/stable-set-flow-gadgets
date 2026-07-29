@@ -61,13 +61,7 @@ def allowed_count(enc, variables, lo, hi):
 
 
 def add_single_decrement_residual_holes(enc):
-    """Necessary conditions from entrywise minimality of a gap-one witness.
-
-    Decrementing either member of each complementary pair gives a packing of
-    tau-1 cuboid members.  Its unique residual cube point completes the original
-    capacity vector and must be infeasible, or the original weight would admit
-    a tau-packing.
-    """
+    """Necessary conditions from entrywise minimality of a gap-one witness."""
     start_v, start_c = enc.var_count, enc.clause_count
     witnesses = 0
     for target in range(enc.d):
@@ -78,22 +72,17 @@ def add_single_decrement_residual_holes(enc):
             residual = [enc.new_var() for _ in range(enc.d)]
             enc.add_clause([residual[target]
                             if residual_target_bit else -residual[target]])
-
             for row in packing:
                 for p in range(1 << enc.d):
                     enc.add_clause([enc.x[p]] + mismatch_row(row, p))
-
             for p in range(1 << enc.d):
                 enc.add_clause([-enc.x[p]] + mismatch_row(residual, p))
-
             for j in range(enc.d):
                 exact_count(enc,
                             [row[j] for row in packing] + [residual[j]],
                             enc.w[j])
-
             for r in range(len(packing) - 1):
                 enc.add_lex_geq(packing[r], packing[r + 1])
-
     return {
         "witnesses": witnesses,
         "variables": enc.var_count - start_v,
@@ -105,10 +94,9 @@ def add_pair_decrement_hierarchy(enc):
     """Encode every packing forced by decrementing one complementary pair.
 
     If a units are removed from capacity i and b units from capacity bar(i),
-    q=a+b with 1 <= q < tau, then the pair cover has weight tau-q.  Every cover
-    loses at most q, hence the new covering number is exactly tau-q.  Since the
-    original violating weight is entrywise minimal, the reduced instance cannot
-    violate MFMC and therefore has an integral packing of tau-q members.
+    q=a+b with 1 <= q < tau, then the pair cover has weight tau-q. Every cover
+    loses at most q, hence the new covering number is exactly tau-q. Entrywise
+    minimality of the original violating weight forces a packing of tau-q sets.
     """
     start_v, start_c = enc.var_count, enc.clause_count
     witnesses = rows_total = 0
@@ -125,11 +113,9 @@ def add_pair_decrement_hierarchy(enc):
                 rows_total += packing_size
                 rows = [[enc.new_var() for _ in range(enc.d)]
                         for _ in range(packing_size)]
-
                 for row in rows:
                     for p in range(1 << enc.d):
                         enc.add_clause([enc.x[p]] + mismatch_row(row, p))
-
                 for j in range(enc.d):
                     column = [row[j] for row in rows]
                     if j == target:
@@ -138,10 +124,8 @@ def add_pair_decrement_hierarchy(enc):
                         lo = max(0, enc.w[j] - q)
                         hi = min(packing_size, enc.w[j])
                         allowed_count(enc, column, lo, hi)
-
                 for r in range(len(rows) - 1):
                     enc.add_lex_geq(rows[r], rows[r + 1])
-
     return {
         "witnesses": witnesses,
         "rows": rows_total,
@@ -153,21 +137,18 @@ def add_pair_decrement_hierarchy(enc):
 def add_support(enc, support_size):
     """Encode a basic optimal fractional packing support.
 
-    The support points are distinct feasible cube points.  Every element must
-    occur in at least capacity+1 support members.  Every minimum cover has size
-    at most support_size-tau and intersects every support row exactly once.
-    Every support member has a mate of weight at least tau+1.
-    Exact affine independence and positivity of the barycentric coefficients
-    are checked by the outer exact separator.
+    Support points are distinct feasible cube points. Since every positive
+    coefficient is strictly below one, coordinate j occurs in at least w_j+1
+    support rows and its complement in at least tau-w_j+1 rows. Minimum covers
+    intersect every support row exactly once. A mate of a positive-support row
+    cannot itself be minimum, hence has integer weight at least tau+1.
     """
     start_v, start_c = enc.var_count, enc.clause_count
     rows = [[enc.new_var() for _ in range(enc.d)]
             for _ in range(support_size)]
-
     for row in rows:
         for p in range(1 << enc.d):
             enc.add_clause([enc.x[p]] + mismatch_row(row, p))
-
     for j in range(enc.d):
         low = enc.w[j] + 1
         high = support_size - (enc.tau - enc.w[j] + 1)
@@ -178,7 +159,6 @@ def add_support(enc, support_size):
         for bits in itertools.product((0, 1), repeat=support_size):
             if not (low <= sum(bits) <= high):
                 forbid(enc, column, bits)
-
     strict_lex_chain(enc, rows)
 
     mate_candidates = []
@@ -187,7 +167,6 @@ def add_support(enc, support_size):
         size = sum(b != NONE for b in B)
         if enc.tau + 1 <= weight <= size + enc.tau - 2:
             mate_candidates.append((B, weight, -enc.y[cover_restr(B)]))
-
     for row in rows:
         for p in range(1 << enc.d):
             candidates = [cover_literal
@@ -206,7 +185,6 @@ def add_support(enc, support_size):
             enc.add_clause([restriction_var])
         else:
             minimum_covers.append((B, restriction_var))
-
     for B, restriction_var in minimum_covers:
         used = [i for i, b in enumerate(B) if b != NONE]
         for row in rows:
@@ -219,7 +197,6 @@ def add_support(enc, support_size):
                     clause.extend(row[i] if bit == 0 else -row[i]
                                   for i, bit in zip(used, bits))
                     enc.add_clause(clause)
-
     return {
         "size": support_size,
         "rows": rows,
