@@ -108,7 +108,12 @@ def read_dimacs(path: Path) -> Tuple[int, List[List[int]]]:
     return nvars, clauses
 
 
-def build_model(mode: str, profile: Tuple[int, int, int, int] | None) -> ExactModel:
+def build_model(
+    mode: str,
+    profile: Tuple[int, int, int, int] | None,
+    degree8_type: str | None = None,
+    degree8_neighbor10: bool = False,
+) -> ExactModel:
     if mode == "core":
         return ExactModel(accelerated=False, common_rainbow=False)
     if mode == "accelerated":
@@ -137,6 +142,12 @@ def build_model(mode: str, profile: Tuple[int, int, int, int] | None) -> ExactMo
         )
         add_profile(model, profile)
         return model
+    if mode == "degree8":
+        if degree8_type is None:
+            raise ValueError("--degree8-type is required in degree8 mode")
+        from degree8_ultracore import build_degree8_model
+
+        return build_degree8_model(degree8_type, degree8_neighbor10)
     raise ValueError(mode)
 
 
@@ -199,16 +210,28 @@ def audit(model: ExactModel, mode: str, cuts_path: Path, static_path: Path) -> d
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", choices=("core", "accelerated", "ultracore", "profile"), required=True)
+    parser.add_argument(
+        "--mode",
+        choices=("core", "accelerated", "ultracore", "profile", "degree8"),
+        required=True,
+    )
     parser.add_argument("--cuts", type=Path, required=True)
     parser.add_argument("--static", type=Path, required=True)
     parser.add_argument("--profile", help="four comma-separated attachment degrees")
+    parser.add_argument("--degree8-type", choices=("GEnfbW", "GEjfrw"))
+    parser.add_argument("--degree8-neighbor10", action="store_true")
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
     profile = tuple(map(int, args.profile.split(","))) if args.profile else None
     if profile is not None and len(profile) != 4:
         raise ValueError("profile must contain four degrees")
-    result = audit(build_model(args.mode, profile), args.mode, args.cuts, args.static)
+    model = build_model(
+        args.mode,
+        profile,
+        degree8_type=args.degree8_type,
+        degree8_neighbor10=args.degree8_neighbor10,
+    )
+    result = audit(model, args.mode, args.cuts, args.static)
     text = json.dumps(result, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
