@@ -1,0 +1,159 @@
+name: Tihany seeded exact resume
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - '.github/workflows/tihany-seeded-resume.yml'
+      - 'experiments/tihany/core_search.py'
+      - 'experiments/tihany/ultracore_search.py'
+      - 'experiments/tihany/audit_static.py'
+      - 'experiments/tihany/run_certified.sh'
+      - 'experiments/tihany/verify_graph.py'
+      - 'experiments/tihany/verify_graph.cpp'
+      - 'experiments/tihany/verify_graph_generic.py'
+      - 'experiments/tihany/verify_graph_generic.cpp'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  core-seeded:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile independent verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph.cpp \
+            -o experiments/tihany/verify_graph
+      - name: Download best completed core ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-core-cegar
+          path: artifacts/core
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 30491121075
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify seed identity
+        run: |
+          test "$(wc -l < artifacts/core/cuts.jsonl)" -eq 5186
+          echo '08c6de508ddce6ab6b1dcf440c41c0611688ec11a2da5918ddf00e47543dd00e  artifacts/core/cuts.jsonl' | sha256sum -c -
+      - name: Resume direct defining-problem CEGAR
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/core_search.py \
+              --mode core --out artifacts/core --resume --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Verify any candidate independently
+        if: always()
+        run: |
+          if [[ -f artifacts/core/candidate.edges ]]; then
+            python experiments/tihany/verify_graph.py \
+              artifacts/core/candidate.edges --output artifacts/core/python-independent.json
+            experiments/tihany/verify_graph artifacts/core/candidate.edges \
+              | tee artifacts/core/cpp-independent.log
+          fi
+      - name: Audit and certify any UNSAT formula
+        if: always()
+        run: |
+          if [[ ! -f artifacts/core/static_core.cnf ]]; then exit 0; fi
+          python experiments/tihany/audit_static.py \
+            --mode core \
+            --cuts artifacts/core/cuts.jsonl \
+            --static artifacts/core/static_core.cnf \
+            --output artifacts/core/static-audit.json
+          bash experiments/tihany/run_certified.sh \
+            artifacts/core/static_core.cnf artifacts/core/certificate
+      - name: Hash outputs
+        if: always()
+        run: |
+          { echo "head_sha=${GITHUB_SHA}"; echo 'seed_run=30491121075'; \
+            find artifacts/core -maxdepth 2 -type f -print0 | sort -z | xargs -0 -r sha256sum; \
+          } | tee artifacts/core/seeded-manifest.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-seeded-core
+          path: artifacts/core
+          retention-days: 90
+
+  ultracore-seeded:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile reduction-independent verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph_generic.cpp \
+            -o experiments/tihany/verify_graph_generic
+      - name: Download best completed ultracore ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-ultracore-cegar
+          path: artifacts/ultracore
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 30491195466
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify seed identity
+        run: |
+          test "$(wc -l < artifacts/ultracore/cuts.jsonl)" -eq 580981
+          echo 'd907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b  artifacts/ultracore/cuts.jsonl' | sha256sum -c -
+      - name: Resume reduction-independent CEGAR
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/ultracore_search.py \
+              --out artifacts/ultracore --resume --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Verify any candidate without reduction assumptions
+        if: always()
+        run: |
+          if [[ -f artifacts/ultracore/candidate.edges ]]; then
+            python experiments/tihany/verify_graph_generic.py \
+              artifacts/ultracore/candidate.edges \
+              --output artifacts/ultracore/python-generic.json
+            experiments/tihany/verify_graph_generic artifacts/ultracore/candidate.edges \
+              | tee artifacts/ultracore/cpp-generic.log
+          fi
+      - name: Audit and certify any UNSAT formula
+        if: always()
+        run: |
+          if [[ ! -f artifacts/ultracore/static_ultracore.cnf ]]; then exit 0; fi
+          python experiments/tihany/audit_static.py \
+            --mode ultracore \
+            --cuts artifacts/ultracore/cuts.jsonl \
+            --static artifacts/ultracore/static_ultracore.cnf \
+            --output artifacts/ultracore/static-audit.json
+          bash experiments/tihany/run_certified.sh \
+            artifacts/ultracore/static_ultracore.cnf artifacts/ultracore/certificate
+      - name: Hash outputs
+        if: always()
+        run: |
+          { echo "head_sha=${GITHUB_SHA}"; echo 'seed_run=30491195466'; \
+            find artifacts/ultracore -maxdepth 2 -type f -print0 | sort -z | xargs -0 -r sha256sum; \
+          } | tee artifacts/ultracore/seeded-manifest.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-seeded-ultracore
+          path: artifacts/ultracore
+          retention-days: 90
