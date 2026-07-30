@@ -106,9 +106,12 @@ jobs:
             exit 0
           fi
           test -f "$P/static.cnf"
+          touch "$P/cuts.jsonl"
+          profile_csv='${{ matrix.profile }}'
+          profile_csv=${profile_csv//-/,}
           python experiments/tihany/audit_static.py \
             --mode profile \
-            --profile "${{ matrix.profile }}" \
+            --profile "$profile_csv" \
             --cuts "$P/cuts.jsonl" \
             --static "$P/static.cnf" \
             --output "$P/static-audit.json"
