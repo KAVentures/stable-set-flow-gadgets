@@ -1,0 +1,138 @@
+name: Tihany 35-profile certification
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - '.github/workflows/tihany-profile-certification.yml'
+      - 'experiments/tihany/profile_core.py'
+      - 'experiments/tihany/audit_static.py'
+      - 'experiments/tihany/core_search.py'
+      - 'experiments/tihany/run_certified.sh'
+      - 'experiments/tihany/verify_graph.py'
+      - 'experiments/tihany/verify_graph.cpp'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  profile:
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix:
+        profile:
+          - '11-11-11-11'
+          - '11-11-11-10'
+          - '11-11-11-9'
+          - '11-11-11-8'
+          - '11-11-10-10'
+          - '11-11-10-9'
+          - '11-11-10-8'
+          - '11-11-9-9'
+          - '11-11-9-8'
+          - '11-11-8-8'
+          - '11-10-10-10'
+          - '11-10-10-9'
+          - '11-10-10-8'
+          - '11-10-9-9'
+          - '11-10-9-8'
+          - '11-10-8-8'
+          - '11-9-9-9'
+          - '11-9-9-8'
+          - '11-9-8-8'
+          - '11-8-8-8'
+          - '10-10-10-10'
+          - '10-10-10-9'
+          - '10-10-10-8'
+          - '10-10-9-9'
+          - '10-10-9-8'
+          - '10-10-8-8'
+          - '10-9-9-9'
+          - '10-9-9-8'
+          - '10-9-8-8'
+          - '10-8-8-8'
+          - '9-9-9-9'
+          - '9-9-9-8'
+          - '9-9-8-8'
+          - '9-8-8-8'
+          - '8-8-8-8'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact dependencies
+        run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile independent graph verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph.cpp \
+            -o experiments/tihany/verify_graph
+      - name: Solve one exhaustive attachment profile
+        shell: bash
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 8200s \
+            python experiments/tihany/profile_core.py \
+              --out artifacts/profiles \
+              --only '${{ matrix.profile }}' \
+              --branch-seconds 8000
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Verify any counterexample independently
+        shell: bash
+        run: |
+          P='artifacts/profiles/${{ matrix.profile }}'
+          if [[ -f "$P/candidate.edges" ]]; then
+            python experiments/tihany/verify_graph.py \
+              "$P/candidate.edges" --output "$P/python-independent.json"
+            experiments/tihany/verify_graph "$P/candidate.edges" \
+              | tee "$P/cpp-independent.log"
+          fi
+      - name: Audit and certify any UNSAT branch
+        shell: bash
+        run: |
+          P='artifacts/profiles/${{ matrix.profile }}'
+          test -f "$P/result.json" || exit 0
+          status=$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["status"])' "$P/result.json")
+          if [[ "$status" != unsat ]]; then
+            echo "profile ${{ matrix.profile }} ended with status=$status; no UNSAT certificate"
+            exit 0
+          fi
+          test -f "$P/static.cnf"
+          python experiments/tihany/audit_static.py \
+            --mode profile \
+            --profile "${{ matrix.profile }}" \
+            --cuts "$P/cuts.jsonl" \
+            --static "$P/static.cnf" \
+            --output "$P/static-audit.json"
+          bash experiments/tihany/run_certified.sh \
+            "$P/static.cnf" "$P/certificate"
+      - name: Emit branch manifest
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/profiles/${{ matrix.profile }}'
+          mkdir -p "$P"
+          {
+            echo "profile=${{ matrix.profile }}"
+            echo "head_sha=${GITHUB_SHA}"
+            for f in result.json cuts.jsonl static.cnf static-audit.json candidate.edges python-independent.json cpp-independent.log; do
+              if [[ -f "$P/$f" ]]; then sha256sum "$P/$f"; fi
+            done
+            if [[ -d "$P/certificate" ]]; then
+              find "$P/certificate" -maxdepth 1 -type f -print0 | sort -z | xargs -0 -r sha256sum
+            fi
+          } | tee "$P/manifest.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-profile-${{ matrix.profile }}
+          path: artifacts/profiles/${{ matrix.profile }}
+          retention-days: 90
