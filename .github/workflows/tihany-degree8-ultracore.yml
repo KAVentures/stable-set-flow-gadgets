@@ -1,0 +1,123 @@
+name: Tihany exact degree-eight elimination
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - '.github/workflows/tihany-degree8-ultracore.yml'
+      - 'experiments/tihany/degree8_ultracore.py'
+      - 'experiments/tihany/audit_static.py'
+      - 'experiments/tihany/run_certified.sh'
+      - 'experiments/tihany/verify_graph_generic.py'
+      - 'experiments/tihany/verify_graph_generic.cpp'
+      - 'experiments/tihany/DEGREE8_INDEPENDENCE.md'
+      - 'experiments/tihany/DEGREE8_DEGREE9_INTERFACE.md'
+      - 'experiments/tihany/ROOK_INTERFACE_ELIMINATION.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  degree8-case:
+    strategy:
+      fail-fast: false
+      matrix:
+        local_type: [GEnfbW, GEjfrw]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact dependencies
+        run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile reduction-independent verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph_generic.cpp \
+            -o experiments/tihany/verify_graph_generic
+      - name: Download strongest validated ultracore cut ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-ultracore-cegar
+          path: artifacts/seed-ultracore
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 30491195466
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify and install 580,981 globally valid cuts
+        shell: bash
+        run: |
+          test "$(wc -l < artifacts/seed-ultracore/cuts.jsonl)" -eq 580981
+          echo 'd907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b  artifacts/seed-ultracore/cuts.jsonl' | sha256sum -c -
+          P='artifacts/degree8/${{ matrix.local_type }}'
+          mkdir -p "$P"
+          cp artifacts/seed-ultracore/cuts.jsonl "$P/cuts.jsonl"
+      - name: Solve one exhaustive degree-eight local type
+        shell: bash
+        run: |
+          P='artifacts/degree8/${{ matrix.local_type }}'
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/degree8_ultracore.py \
+              --type '${{ matrix.local_type }}' \
+              --neighbor10 \
+              --out "$P" \
+              --resume \
+              --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Independently verify any counterexample
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8/${{ matrix.local_type }}'
+          if [[ -f "$P/candidate.edges" ]]; then
+            python experiments/tihany/verify_graph_generic.py \
+              "$P/candidate.edges" --output "$P/python-generic.json"
+            experiments/tihany/verify_graph_generic "$P/candidate.edges" \
+              | tee "$P/cpp-generic.log"
+          fi
+      - name: Audit and certify any UNSAT branch
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8/${{ matrix.local_type }}'
+          if [[ ! -f "$P/static_degree8.cnf" ]]; then
+            echo 'No static UNSAT formula in this branch.'
+            exit 0
+          fi
+          python experiments/tihany/audit_static.py \
+            --mode degree8 \
+            --degree8-type '${{ matrix.local_type }}' \
+            --degree8-neighbor10 \
+            --cuts "$P/cuts.jsonl" \
+            --static "$P/static_degree8.cnf" \
+            --output "$P/static-audit.json"
+          bash experiments/tihany/run_certified.sh \
+            "$P/static_degree8.cnf" "$P/certificate"
+      - name: Emit reproducibility manifest
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8/${{ matrix.local_type }}'
+          mkdir -p "$P"
+          {
+            echo "local_type=${{ matrix.local_type }}"
+            echo "head_sha=${GITHUB_SHA}"
+            echo 'neighbor10=true'
+            echo 'seed_run=30491195466'
+            echo 'seed_cuts_sha256=d907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b'
+            find "$P" -maxdepth 2 -type f ! -name manifest.txt -print0 \
+              | sort -z | xargs -0 -r sha256sum
+          } | tee "$P/manifest.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-degree8-${{ matrix.local_type }}
+          path: artifacts/degree8/${{ matrix.local_type }}
+          retention-days: 90
