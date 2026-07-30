@@ -16,6 +16,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   profile:
@@ -73,7 +74,23 @@ jobs:
           g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
             experiments/tihany/verify_graph.cpp \
             -o experiments/tihany/verify_graph
-      - name: Solve one exhaustive attachment profile
+      - name: Download globally valid core CEGAR seed
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-core-cegar
+          path: artifacts/seed-core
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 30491121075
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install and verify 5,186-cut seed
+        shell: bash
+        run: |
+          test "$(wc -l < artifacts/seed-core/cuts.jsonl)" -eq 5186
+          echo '08c6de508ddce6ab6b1dcf440c41c0611688ec11a2da5918ddf00e47543dd00e  artifacts/seed-core/cuts.jsonl' | sha256sum -c -
+          P='artifacts/profiles/${{ matrix.profile }}'
+          mkdir -p "$P"
+          cp artifacts/seed-core/cuts.jsonl "$P/cuts.jsonl"
+      - name: Solve one exhaustive attachment profile from certified-valid cuts
         shell: bash
         run: |
           set +e
@@ -81,7 +98,8 @@ jobs:
             python experiments/tihany/profile_core.py \
               --out artifacts/profiles \
               --only '${{ matrix.profile }}' \
-              --branch-seconds 8000
+              --branch-seconds 8000 \
+              --resume
           status=$?
           set -e
           case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
@@ -126,6 +144,8 @@ jobs:
           {
             echo "profile=${{ matrix.profile }}"
             echo "head_sha=${GITHUB_SHA}"
+            echo "seed_run=30491121075"
+            echo "seed_cuts_sha256=08c6de508ddce6ab6b1dcf440c41c0611688ec11a2da5918ddf00e47543dd00e"
             for f in result.json cuts.jsonl static.cnf static-audit.json candidate.edges python-independent.json cpp-independent.log; do
               if [[ -f "$P/$f" ]]; then sha256sum "$P/$f"; fi
             done
