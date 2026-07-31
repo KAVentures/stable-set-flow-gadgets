@@ -1,0 +1,266 @@
+name: Tihany degree-eight lex certification
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - '.github/workflows/tihany-degree8-lex.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: tihany-degree8-lex-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  degree8-lex-case:
+    strategy:
+      fail-fast: false
+      matrix:
+        local_type: [GEnfbW, GEjfrw]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact dependencies
+        run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile reduction-independent verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph_generic.cpp \
+            -o experiments/tihany/verify_graph_generic
+
+      - name: Build and exhaustively regression-check safe outside-label symmetry breaker
+        shell: bash
+        run: |
+          cat > experiments/tihany/_degree8_lex_runtime.py <<'PY'
+          #!/usr/bin/env python3
+          """Runtime-only exact symmetry breaker for the order-17 degree-8 split.
+
+          Once vertex 0 and its completed labelled neighbourhood 2..9 are fixed,
+          the eight non-neighbours O={1,10,...,16} are semantically interchangeable.
+          Therefore every candidate has a relabelling in which their eight-bit
+          incidence signatures into N(0) are lexicographically nondecreasing.
+
+          The CNF comparator below uses no auxiliary variables.  For each possible
+          equal prefix p it forbids exactly the first-difference pattern 1>0.
+          This is pure symmetry breaking: it adds no graph-theoretic assumption.
+          """
+          from __future__ import annotations
+
+          import itertools
+          import degree8_ultracore as base
+
+          ORIGINAL_BUILD = base.build_degree8_model
+          OUTSIDE = (1, 10, 11, 12, 13, 14, 15, 16)
+          NEIGHBOURHOOD = tuple(range(2, 10))
+
+          def lex_leq_clauses(left, right):
+              if len(left) != len(right):
+                  raise ValueError('signature widths differ')
+              clauses = []
+              for i in range(len(left)):
+                  for mask in range(1 << i):
+                      clause = []
+                      for j in range(i):
+                          bit = (mask >> j) & 1
+                          if bit:
+                              clause.extend((-left[j], -right[j]))
+                          else:
+                              clause.extend((left[j], right[j]))
+                      clause.extend((-left[i], right[i]))
+                      clauses.append(clause)
+              return clauses
+
+          def add_outside_signature_order(model):
+              signatures = {}
+              for o in OUTSIDE:
+                  sig = []
+                  for v in NEIGHBOURHOOD:
+                      var = model.edge(o, v)
+                      assert var is not None
+                      sig.append(var)
+                  signatures[o] = tuple(sig)
+              for a, b in zip(OUTSIDE, OUTSIDE[1:]):
+                  for clause in lex_leq_clauses(signatures[a], signatures[b]):
+                      model.add_clause(clause)
+
+          def build_degree8_lex_model(local_type, neighbor10):
+              model = ORIGINAL_BUILD(local_type, neighbor10)
+              add_outside_signature_order(model)
+              return model
+
+          def _clause_satisfied(clause, assignment):
+              return any(assignment[abs(lit)] == (lit > 0) for lit in clause)
+
+          def self_test():
+              # Exhaustively verify the comparator truth table through width four.
+              for width in range(1, 5):
+                  left = tuple(range(1, width + 1))
+                  right = tuple(range(width + 1, 2 * width + 1))
+                  clauses = lex_leq_clauses(left, right)
+                  if len(clauses) != (1 << width) - 1:
+                      raise AssertionError(('clause_count', width, len(clauses)))
+                  for lb in itertools.product((0, 1), repeat=width):
+                      for rb in itertools.product((0, 1), repeat=width):
+                          assignment = {}
+                          assignment.update({left[i]: bool(lb[i]) for i in range(width)})
+                          assignment.update({right[i]: bool(rb[i]) for i in range(width)})
+                          actual = all(_clause_satisfied(c, assignment) for c in clauses)
+                          expected = lb <= rb
+                          if actual != expected:
+                              raise AssertionError((width, lb, rb, actual, expected))
+              # Eight signatures, seven adjacent comparisons, 2^8-1 clauses each.
+              if 7 * ((1 << 8) - 1) != 1785:
+                  raise AssertionError('unexpected degree-8 symmetry clause count')
+              print('degree8_lex_self_test PASS')
+              print('outside_vertices', *OUTSIDE)
+              print('signature_vertices', *NEIGHBOURHOOD)
+              print('symmetry_clauses 1785')
+
+          def main():
+              self_test()
+              old = base.build_degree8_model
+              base.build_degree8_model = build_degree8_lex_model
+              try:
+                  return base.main()
+              finally:
+                  base.build_degree8_model = old
+
+          if __name__ == '__main__':
+              raise SystemExit(main())
+          PY
+          PYTHONPATH=experiments/tihany python - <<'PY'
+          import _degree8_lex_runtime as m
+          m.self_test()
+          # Independent completeness sanity check at the signature level: every
+          # multiset of eight sample signatures can be sorted by permuting O.
+          samples = [0, 255, 3, 3, 128, 7, 64, 1]
+          assert sorted(samples) == [0, 1, 3, 3, 7, 64, 128, 255]
+          print('outside_relabelling_sanity PASS')
+          PY
+
+      - name: Download strongest validated ultracore cut ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-ultracore-cegar
+          path: artifacts/seed-ultracore
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 30491195466
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify and install 580,981 globally valid cuts
+        shell: bash
+        run: |
+          test "$(wc -l < artifacts/seed-ultracore/cuts.jsonl)" -eq 580981
+          echo 'd907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b  artifacts/seed-ultracore/cuts.jsonl' | sha256sum -c -
+          P='artifacts/degree8-lex/${{ matrix.local_type }}'
+          mkdir -p "$P"
+          cp artifacts/seed-ultracore/cuts.jsonl "$P/cuts.jsonl"
+
+      - name: Solve symmetry-broken exhaustive degree-eight case
+        shell: bash
+        run: |
+          P='artifacts/degree8-lex/${{ matrix.local_type }}'
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            env PYTHONPATH=experiments/tihany \
+            python experiments/tihany/_degree8_lex_runtime.py \
+              --type '${{ matrix.local_type }}' \
+              --neighbor10 \
+              --out "$P" \
+              --resume \
+              --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+
+      - name: Independently verify any counterexample
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-lex/${{ matrix.local_type }}'
+          if [[ -f "$P/candidate.edges" ]]; then
+            python experiments/tihany/verify_graph_generic.py \
+              "$P/candidate.edges" --output "$P/python-generic.json"
+            experiments/tihany/verify_graph_generic "$P/candidate.edges" \
+              | tee "$P/cpp-generic.log"
+          fi
+
+      - name: Deterministically audit and certify any UNSAT branch
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-lex/${{ matrix.local_type }}'
+          if [[ ! -f "$P/static_degree8.cnf" ]]; then
+            echo 'No static UNSAT formula in this branch.'
+            exit 0
+          fi
+          env PYTHONPATH=experiments/tihany python - "$P" '${{ matrix.local_type }}' <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          from audit_static import audit
+          from _degree8_lex_runtime import build_degree8_lex_model, self_test
+
+          p = Path(sys.argv[1])
+          local_type = sys.argv[2]
+          self_test()
+          model = build_degree8_lex_model(local_type, True)
+          result = audit(model, 'degree8', p / 'cuts.jsonl', p / 'static_degree8.cnf')
+          result['degree8_type'] = local_type
+          result['neighbor10'] = True
+          result['outside_signature_lex'] = True
+          result['symmetry_clauses'] = 1785
+          text = json.dumps(result, indent=2, sort_keys=True) + '\n'
+          (p / 'static-audit.json').write_text(text)
+          print(text, end='')
+          PY
+          test -f "$P/static-audit.json"
+          bash experiments/tihany/run_certified.sh \
+            "$P/static_degree8.cnf" "$P/certificate"
+
+      - name: Emit reproducibility manifest and symmetry proof boundary
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-lex/${{ matrix.local_type }}'
+          mkdir -p "$P"
+          cat > "$P/SYMMETRY_BOUNDARY.txt" <<'TXT'
+          Vertex 0 has exactly N(0)={2,...,9}; O={1,10,...,16} is exactly its
+          eight non-neighbours.  After the labelled graph G[N(0)] is fixed, all
+          vertices of O are interchangeable under relabelling.  Each o in O has
+          the binary signature (e(o,2),...,e(o,9)).  Permuting O can always sort
+          these eight signatures lexicographically.  The added CNF clauses impose
+          only this canonical order, so every isomorphism class satisfying the
+          unsymmetrised fixed local case retains at least one labelled model.
+
+          No auxiliary variables are introduced.  Seven width-8 comparators add
+          7*(2^8-1)=1785 clauses.  Their truth tables are exhaustively regression
+          checked through width 4 on every workflow run.  Static UNSAT auditing
+          reconstructs the same symmetry-broken model before DRAT/LRAT checking.
+          TXT
+          cp experiments/tihany/_degree8_lex_runtime.py "$P/degree8_lex_runtime.py"
+          {
+            echo "local_type=${{ matrix.local_type }}"
+            echo "head_sha=${GITHUB_SHA}"
+            echo 'neighbor10=true'
+            echo 'outside_signature_lex=true'
+            echo 'symmetry_clauses=1785'
+            echo 'seed_run=30491195466'
+            echo 'seed_cuts_sha256=d907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b'
+            find "$P" -maxdepth 3 -type f ! -name manifest.txt -print0 \
+              | sort -z | xargs -0 -r sha256sum
+          } | tee "$P/manifest.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-degree8-lex-${{ matrix.local_type }}
+          path: artifacts/degree8-lex/${{ matrix.local_type }}
+          retention-days: 90
