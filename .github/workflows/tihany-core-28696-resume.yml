@@ -1,0 +1,98 @@
+name: Tihany direct-core 28696-cut certified resume
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - '.github/workflows/tihany-core-28696-resume.yml'
+      - 'experiments/tihany/core_search.py'
+      - 'experiments/tihany/audit_static.py'
+      - 'experiments/tihany/run_certified.sh'
+      - 'experiments/tihany/verify_graph.py'
+      - 'experiments/tihany/verify_graph.cpp'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  core-28696-resume:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile independent verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph.cpp \
+            -o experiments/tihany/verify_graph
+      - name: Download new best direct-core ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-core-24459-resume
+          path: artifacts/core
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 31030539904
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify exact 28696-cut seed identity
+        run: |
+          test "$(wc -l < artifacts/core/cuts.jsonl)" -eq 28696
+          echo 'cc83e48669a580a698796e12a7179040ef1369c78b679c28143a874daa9b9774  artifacts/core/cuts.jsonl' | sha256sum -c -
+      - name: Resume reduction-independent direct defining-problem CEGAR
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/core_search.py \
+              --mode core --out artifacts/core --resume --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Independently verify any candidate
+        if: always()
+        run: |
+          if [[ -f artifacts/core/candidate.edges ]]; then
+            python experiments/tihany/verify_graph.py \
+              artifacts/core/candidate.edges \
+              --output artifacts/core/python-independent.json
+            experiments/tihany/verify_graph artifacts/core/candidate.edges \
+              | tee artifacts/core/cpp-independent.log
+          fi
+      - name: Deterministically audit and certify any UNSAT formula
+        if: always()
+        run: |
+          if [[ ! -f artifacts/core/static_core.cnf ]]; then
+            echo 'No static direct-core UNSAT formula was emitted.'
+            exit 0
+          fi
+          python experiments/tihany/audit_static.py \
+            --mode core \
+            --cuts artifacts/core/cuts.jsonl \
+            --static artifacts/core/static_core.cnf \
+            --output artifacts/core/static-audit.json
+          test -f artifacts/core/static-audit.json
+          bash experiments/tihany/run_certified.sh \
+            artifacts/core/static_core.cnf artifacts/core/certificate
+      - name: Emit reproducibility manifest
+        if: always()
+        run: |
+          {
+            echo "head_sha=${GITHUB_SHA}"
+            echo 'seed_run=31030539904'
+            echo 'seed_artifact=tihany-core-24459-resume'
+            echo 'seed_cuts=28696'
+            echo 'seed_cuts_sha256=cc83e48669a580a698796e12a7179040ef1369c78b679c28143a874daa9b9774'
+            find artifacts/core -maxdepth 5 -type f ! -name seeded-28696-manifest.txt -print0 \
+              | sort -z | xargs -0 -r sha256sum
+          } | tee artifacts/core/seeded-28696-manifest.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-core-28696-resume
+          path: artifacts/core
+          retention-days: 90

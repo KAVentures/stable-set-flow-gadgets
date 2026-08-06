@@ -1,0 +1,188 @@
+name: Tihany degree-eight cross-count certification
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - 'experiments/tihany/degree8_crosscount.py'
+      - '.github/workflows/tihany-degree8-crosscount.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: tihany-degree8-crosscount-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  degree8-crosscount:
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        local_type: [GEnfbW, GEjfrw]
+        cross_count: [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
+        exclude:
+          - local_type: GEnfbW
+            cross_count: 38
+          - local_type: GEnfbW
+            cross_count: 39
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact dependencies
+        run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile reduction-independent verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph_generic.cpp \
+            -o experiments/tihany/verify_graph_generic
+
+      - name: Regression-check exhaustive split and safe symmetry breaker
+        run: |
+          env PYTHONPATH=experiments/tihany \
+            python experiments/tihany/degree8_crosscount.py --help-crosscount-test 2>/dev/null || true
+          env PYTHONPATH=experiments/tihany python - <<'PY'
+          import degree8_crosscount as d
+          d.self_test()
+          # Derive, rather than merely hard-code, the lower bounds.
+          assert d.local_degrees('GEnfbW') == (4,4,4,4,4,4,4,4)
+          assert sorted(d.local_degrees('GEjfrw')) == [4,4,4,4,4,4,5,5]
+          assert d.minimum_cross_count('GEnfbW') == 40
+          assert d.minimum_cross_count('GEjfrw') == 38
+          assert len([(t,c) for t in d.base.ALLOWED_TYPES
+                      for c in range(d.minimum_cross_count(t),65)]) == 52
+          print('degree8_crosscount_independent_range_check PASS')
+          PY
+
+      - name: Download strongest independently audited ultracore cut ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-ultracore-cegar
+          path: artifacts/seed-ultracore
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 30491195466
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify and install 580,981 globally valid cuts
+        shell: bash
+        run: |
+          test "$(wc -l < artifacts/seed-ultracore/cuts.jsonl)" -eq 580981
+          echo 'd907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b  artifacts/seed-ultracore/cuts.jsonl' | sha256sum -c -
+          P='artifacts/degree8-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          mkdir -p "$P"
+          cp artifacts/seed-ultracore/cuts.jsonl "$P/cuts.jsonl"
+
+      - name: Solve exact cross-count branch
+        shell: bash
+        run: |
+          P='artifacts/degree8-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            env PYTHONPATH=experiments/tihany \
+            python experiments/tihany/degree8_crosscount.py \
+              --cross-count '${{ matrix.cross_count }}' \
+              --type '${{ matrix.local_type }}' \
+              --neighbor10 \
+              --out "$P" \
+              --resume \
+              --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+
+      - name: Independently verify any counterexample
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          if [[ -f "$P/candidate.edges" ]]; then
+            python experiments/tihany/verify_graph_generic.py \
+              "$P/candidate.edges" --output "$P/python-generic.json"
+            experiments/tihany/verify_graph_generic "$P/candidate.edges" \
+              | tee "$P/cpp-generic.log"
+          fi
+
+      - name: Deterministically audit and certify any UNSAT branch
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          if [[ ! -f "$P/static_degree8.cnf" ]]; then
+            echo 'No static UNSAT formula in this branch.'
+            exit 0
+          fi
+          env PYTHONPATH=experiments/tihany python - \
+            "$P" '${{ matrix.local_type }}' '${{ matrix.cross_count }}' <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+          from audit_static import audit
+          from degree8_crosscount import build_degree8_crosscount_model, self_test
+
+          p = Path(sys.argv[1])
+          local_type = sys.argv[2]
+          cross_count = int(sys.argv[3])
+          self_test()
+          model = build_degree8_crosscount_model(local_type, cross_count)
+          result = audit(model, 'degree8', p / 'cuts.jsonl', p / 'static_degree8.cnf')
+          result['degree8_type'] = local_type
+          result['neighbor10'] = True
+          result['outside_signature_lex'] = True
+          result['cross_count'] = cross_count
+          result['cross_count_split_exhaustive_cases'] = 52
+          text = json.dumps(result, indent=2, sort_keys=True) + '\n'
+          (p / 'static-audit.json').write_text(text)
+          print(text, end='')
+          PY
+          test -f "$P/static-audit.json"
+          bash experiments/tihany/run_certified.sh \
+            "$P/static_degree8.cnf" "$P/certificate"
+
+      - name: Emit full reproducibility manifest
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          mkdir -p "$P"
+          cp experiments/tihany/degree8_crosscount.py "$P/degree8_crosscount.py"
+          cat > "$P/PROOF_BOUNDARY.txt" <<TXT
+          This branch is one of 52 pairwise-disjoint exhaustive cases for the
+          order-17 degree-eight regime after fixing the independently certified
+          local neighbourhood type and applying the independently certified theorem
+          that every neighbour of the degree-eight centre has degree at least 10.
+
+          local_type=${{ matrix.local_type }}
+          cross_count=${{ matrix.cross_count }}
+
+          The exact cross count fixes only the number of the 64 possible edges
+          between N(0)={2,...,9} and O={1,10,...,16}.  The eight vertices of O are
+          interchangeable after the labelled local neighbourhood is fixed, so their
+          8-bit N(0)-incidence signatures are safely sorted lexicographically.
+          The two local types and all feasible cross counts 40..64 / 38..64 give
+          exactly 25+27=52 cases.  Core and unrestricted ultracore are unchanged.
+          TXT
+          {
+            echo "local_type=${{ matrix.local_type }}"
+            echo "cross_count=${{ matrix.cross_count }}"
+            echo "head_sha=${GITHUB_SHA}"
+            echo 'neighbor10=true'
+            echo 'outside_signature_lex=true'
+            echo 'exhaustive_cases=52'
+            echo 'seed_run=30491195466'
+            echo 'seed_cuts_sha256=d907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b'
+            find "$P" -maxdepth 4 -type f ! -name manifest.txt -print0 \
+              | sort -z | xargs -0 -r sha256sum
+          } | tee "$P/manifest.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-degree8-crosscount-${{ matrix.local_type }}-${{ matrix.cross_count }}
+          path: artifacts/degree8-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}
+          retention-days: 90

@@ -1,0 +1,169 @@
+name: Tihany structural verifiers
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - 'experiments/tihany/DEGREE5_INDEPENDENCE.md'
+      - 'experiments/tihany/DEGREE8_INDEPENDENCE.md'
+      - 'experiments/tihany/DEGREE8_DEGREE9_INTERFACE.md'
+      - 'experiments/tihany/ROOK_INTERFACE_ELIMINATION.md'
+      - 'experiments/tihany/verify_adjacent_degree5_independent.cpp'
+      - 'experiments/tihany/verify_adjacent_degree8.cpp'
+      - 'experiments/tihany/verify_degree8_degree9_interface.cpp'
+      - 'experiments/tihany/verify_rook_pattern_elimination.cpp'
+      - '.github/workflows/tihany-structure.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adjacent-degree-five:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile independent structural verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_adjacent_degree5_independent.cpp \
+            -o experiments/tihany/verify_adjacent_degree5_independent
+      - name: Reproduce the complete gluing census
+        run: |
+          experiments/tihany/verify_adjacent_degree5_independent \
+            | tee experiments/tihany/adjacent-degree5.log
+          grep -Fx 'local_decompositions 4' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'compatible_gluings 160' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'intersection_2 80' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'intersection_3 80' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'survivors 0' experiments/tihany/adjacent-degree5.log
+          grep -Fx 'status PASS' experiments/tihany/adjacent-degree5.log
+      - name: Hash structural certificate sources and output
+        run: |
+          sha256sum \
+            experiments/tihany/DEGREE5_INDEPENDENCE.md \
+            experiments/tihany/verify_adjacent_degree5_independent.cpp \
+            experiments/tihany/adjacent-degree5.log \
+            | tee experiments/tihany/adjacent-degree5.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tihany-adjacent-degree-five
+          path: |
+            experiments/tihany/adjacent-degree5.log
+            experiments/tihany/adjacent-degree5.sha256
+          retention-days: 90
+
+  adjacent-degree-eight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile the independent degree-eight verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_adjacent_degree8.cpp \
+            -o experiments/tihany/verify_adjacent_degree8
+      - name: Reproduce all adjacent-neighbourhood amalgams
+        run: |
+          experiments/tihany/verify_adjacent_degree8 \
+            | tee experiments/tihany/adjacent-degree8.log
+          grep -Fx 'compatible_gluings 184' experiments/tihany/adjacent-degree8.log
+          grep -Fx 'survivors 0' experiments/tihany/adjacent-degree8.log
+          grep -Fx 'status PASS' experiments/tihany/adjacent-degree8.log
+      - name: Hash structural certificate sources and output
+        run: |
+          sha256sum \
+            experiments/tihany/DEGREE8_INDEPENDENCE.md \
+            experiments/tihany/verify_adjacent_degree8.cpp \
+            experiments/tihany/adjacent-degree8.log \
+            | tee experiments/tihany/adjacent-degree8.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tihany-adjacent-degree-eight
+          path: |
+            experiments/tihany/adjacent-degree8.log
+            experiments/tihany/adjacent-degree8.sha256
+          retention-days: 90
+
+  degree-eight-degree-nine-interface:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile the full interface census
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_degree8_degree9_interface.cpp \
+            -o experiments/tihany/verify_degree8_degree9_interface
+      - name: Generate all 67 neighbourhoods and scan every amalgam
+        run: |
+          experiments/tihany/verify_degree8_degree9_interface \
+            | tee experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'unlabeled8 12346' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'candidates9 3160576' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'raw_admissible9 492' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'admissible_types9 67' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'compatible_gluings 4656' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'surviving_gluings 8' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'surviving_degree8_types 1' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'surviving_degree9_types 1' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'surviving_degree9_graph6 HqolhhX' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'rooted_interface_types 1' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'interface_vertices 13' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'interface_edges 39' experiments/tihany/degree8-degree9-interface.log
+          grep -Fx 'status PASS' experiments/tihany/degree8-degree9-interface.log
+      - name: Hash classification note, checker and output
+        run: |
+          sha256sum \
+            experiments/tihany/DEGREE8_DEGREE9_INTERFACE.md \
+            experiments/tihany/verify_degree8_degree9_interface.cpp \
+            experiments/tihany/degree8-degree9-interface.log \
+            | tee experiments/tihany/degree8-degree9-interface.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tihany-degree8-degree9-interface
+          path: |
+            experiments/tihany/degree8-degree9-interface.log
+            experiments/tihany/degree8-degree9-interface.sha256
+          retention-days: 90
+
+  rook-pattern-elimination:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compile the residual-interface checker
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_rook_pattern_elimination.cpp \
+            -o experiments/tihany/verify_rook_pattern_elimination
+      - name: Reproduce cross-mask and four-outside reductions
+        run: |
+          experiments/tihany/verify_rook_pattern_elimination \
+            | tee experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'cross_masks 4096' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'rainbow_survivors 16' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'survivor_masks 0 1 16 17 64 65 128 129 512 513 528 529 576 577 640 641' \
+            experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'allowed_neighbourhoods 1864' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'maximal_neighbourhoods 13' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'four_outside_feasible 5' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'residual_masks 0 16 17 64 128' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'symbolic_facts PASS' experiments/tihany/rook-pattern-elimination.log
+          grep -Fx 'status PASS' experiments/tihany/rook-pattern-elimination.log
+      - name: Hash proof note, checker and output
+        run: |
+          sha256sum \
+            experiments/tihany/ROOK_INTERFACE_ELIMINATION.md \
+            experiments/tihany/verify_rook_pattern_elimination.cpp \
+            experiments/tihany/rook-pattern-elimination.log \
+            | tee experiments/tihany/rook-pattern-elimination.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tihany-rook-pattern-elimination
+          path: |
+            experiments/tihany/rook-pattern-elimination.log
+            experiments/tihany/rook-pattern-elimination.sha256
+          retention-days: 90

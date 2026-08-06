@@ -1,0 +1,53 @@
+name: Tihany degree-five accelerated search
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - 'experiments/tihany/degree5_accelerated.py'
+      - 'experiments/tihany/DEGREE5_INDEPENDENCE.md'
+      - 'experiments/tihany/verify_adjacent_degree5_independent.cpp'
+      - '.github/workflows/tihany-degree5-search.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  degree5-accelerated:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Verify the structural theorem's finite case first
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_adjacent_degree5_independent.cpp \
+            -o experiments/tihany/verify_adjacent_degree5_independent
+          experiments/tihany/verify_adjacent_degree5_independent \
+            | tee artifacts-adjacent-degree5.log
+          grep -Fx 'survivors 0' artifacts-adjacent-degree5.log
+          grep -Fx 'status PASS' artifacts-adjacent-degree5.log
+      - name: Run exact accelerated search with degree-five independence
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/degree5_accelerated.py \
+              --out artifacts/degree5-accelerated \
+              --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-degree5-accelerated
+          path: |
+            artifacts/degree5-accelerated
+            artifacts-adjacent-degree5.log
+          retention-days: 90

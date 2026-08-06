@@ -1,0 +1,165 @@
+name: Tihany degree-eight alpha4 cross-count certification
+
+on:
+  push:
+    branches:
+      - research/tihany-exact-core
+    paths:
+      - 'experiments/tihany/degree8_alpha_crosscount.py'
+      - '.github/workflows/tihany-degree8-alpha-crosscount.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: tihany-degree8-alpha-crosscount-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  degree8-alpha-crosscount:
+    strategy:
+      fail-fast: false
+      max-parallel: 16
+      matrix:
+        local_type: [GEnfbW, GEjfrw]
+        cross_count: [38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
+        exclude:
+          - local_type: GEnfbW
+            cross_count: 38
+          - local_type: GEnfbW
+            cross_count: 39
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile independent generic verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph_generic.cpp \
+            -o experiments/tihany/verify_graph_generic
+      - name: Regression-check split, symmetry and alpha reduction
+        run: |
+          env PYTHONPATH=experiments/tihany python - <<'PY'
+          import itertools
+          import degree8_alpha_crosscount as d
+          d.self_test()
+          assert len(list(itertools.combinations(range(17),5))) == 6188
+          assert len([(t,c) for t in d.split.base.ALLOWED_TYPES
+                      for c in range(d.split.minimum_cross_count(t),65)]) == 52
+          # Verify that all 70 clauses induced by {0}+four outside vertices are
+          # precisely nonempty-edge clauses on the outside four-set.
+          m = d.build_model('GEnfbW', 40)
+          for four in itertools.combinations(d.split.OUTSIDE, 4):
+              lits = [m.edge(u,v) for u,v in itertools.combinations(four,2)]
+              assert all(x is not None for x in lits)
+          print('degree8_alpha_independent_check PASS')
+          PY
+      - name: Download independently audited ultracore cut ledger
+        uses: actions/download-artifact@v4
+        with:
+          name: tihany-ultracore-cegar
+          path: artifacts/seed-ultracore
+          repository: KAVentures/stable-set-flow-gadgets
+          run-id: 30491195466
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify and install 580981 globally valid cuts
+        shell: bash
+        run: |
+          test "$(wc -l < artifacts/seed-ultracore/cuts.jsonl)" -eq 580981
+          echo 'd907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b  artifacts/seed-ultracore/cuts.jsonl' | sha256sum -c -
+          P='artifacts/degree8-alpha-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          mkdir -p "$P"
+          cp artifacts/seed-ultracore/cuts.jsonl "$P/cuts.jsonl"
+      - name: Solve exact alpha4 branch
+        shell: bash
+        run: |
+          P='artifacts/degree8-alpha-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            env PYTHONPATH=experiments/tihany \
+            python experiments/tihany/degree8_alpha_crosscount.py \
+              --cross-count '${{ matrix.cross_count }}' \
+              --type '${{ matrix.local_type }}' \
+              --neighbor10 --out "$P" --resume --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Independently verify any candidate
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-alpha-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          if [[ -f "$P/candidate.edges" ]]; then
+            python experiments/tihany/verify_graph_generic.py \
+              "$P/candidate.edges" --output "$P/python-generic.json"
+            experiments/tihany/verify_graph_generic "$P/candidate.edges" \
+              | tee "$P/cpp-generic.log"
+          fi
+      - name: Reconstruct, audit and certify any UNSAT branch
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-alpha-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          if [[ ! -f "$P/static_degree8.cnf" ]]; then
+            echo 'No static UNSAT formula in this branch.'
+            exit 0
+          fi
+          env PYTHONPATH=experiments/tihany python - \
+            "$P" '${{ matrix.local_type }}' '${{ matrix.cross_count }}' <<'PY'
+          import json, sys
+          from pathlib import Path
+          from audit_static import audit
+          from degree8_alpha_crosscount import build_model, self_test
+          p=Path(sys.argv[1]); t=sys.argv[2]; c=int(sys.argv[3])
+          self_test()
+          model=build_model(t,c)
+          result=audit(model,'degree8',p/'cuts.jsonl',p/'static_degree8.cnf')
+          result.update({'degree8_type':t,'cross_count':c,'neighbor10':True,
+                         'alpha_at_most_four':True,'outside_signature_lex':True,
+                         'exhaustive_cases':52})
+          text=json.dumps(result,indent=2,sort_keys=True)+'\n'
+          (p/'static-audit.json').write_text(text)
+          print(text,end='')
+          PY
+          test -f "$P/static-audit.json"
+          bash experiments/tihany/run_certified.sh \
+            "$P/static_degree8.cnf" "$P/certificate"
+      - name: Emit reproducibility manifest
+        if: always()
+        shell: bash
+        run: |
+          P='artifacts/degree8-alpha-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}'
+          mkdir -p "$P"
+          cp experiments/tihany/degree8_alpha_crosscount.py "$P/degree8_alpha_crosscount.py"
+          cat > "$P/PROOF_BOUNDARY.txt" <<TXT
+          Exact order-17 degree-eight branch. Uses: one of the two independently
+          certified degree-eight neighbourhood types; the independently certified
+          order-17 neighbour-degree >=10 theorem; the established order-17 reduction
+          alpha(G)=4; safe outside-signature lex ordering; and an exact cross-edge
+          count. The 52 local-type/cross-count branches are exhaustive for the
+          degree-eight regime. Ordinary core and unrestricted ultracore are unchanged.
+          TXT
+          {
+            echo "local_type=${{ matrix.local_type }}"
+            echo "cross_count=${{ matrix.cross_count }}"
+            echo "head_sha=${GITHUB_SHA}"
+            echo 'alpha_at_most_four=true'
+            echo 'neighbor10=true'
+            echo 'outside_signature_lex=true'
+            echo 'exhaustive_cases=52'
+            echo 'seed_run=30491195466'
+            echo 'seed_cuts_sha256=d907b2449ceecea064937498c69735f572ac2c228f50797f34d10142e058c46b'
+            find "$P" -maxdepth 5 -type f ! -name manifest.txt -print0 | sort -z | xargs -0 -r sha256sum
+          } | tee "$P/manifest.txt"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-degree8-alpha-${{ matrix.local_type }}-${{ matrix.cross_count }}
+          path: artifacts/degree8-alpha-crosscount/${{ matrix.local_type }}-${{ matrix.cross_count }}
+          retention-days: 90

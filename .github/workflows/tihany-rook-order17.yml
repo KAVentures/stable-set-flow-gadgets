@@ -1,0 +1,79 @@
+name: Tihany exceptional-interface completion (superseded)
+
+# The five residual patterns are now excluded by the independently checked finite
+# reduction and symbolic proof in ROOK_INTERFACE_ELIMINATION.md.  This expensive
+# graph-level CEGAR remains available only as an optional independent cross-check.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: tihany-historical-interface-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  exact-completion:
+    strategy:
+      fail-fast: false
+      matrix:
+        pattern: [0, 2, 3, 4, 6]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install exact dependencies
+        run: pip install 'python-sat[pblib,aiger]' networkx
+      - name: Compile reduction-independent verifier
+        run: |
+          g++ -O3 -std=c++17 -Wall -Wextra -pedantic \
+            experiments/tihany/verify_graph_generic.cpp \
+            -o experiments/tihany/verify_graph_generic
+      - name: Run exact graph-level CEGAR for residual pattern
+        run: |
+          set +e
+          timeout --signal=INT --kill-after=90s 19000s \
+            python experiments/tihany/rook_order17_cegar.py \
+              --pattern '${{ matrix.pattern }}' \
+              --common-rainbow \
+              --out artifacts/exceptional-interface-order17 \
+              --max-seconds 18800
+          status=$?
+          set -e
+          case "$status" in 0|10|20|124|130) ;; *) exit "$status";; esac
+      - name: Independently verify any counterexample
+        if: always()
+        run: |
+          P='artifacts/exceptional-interface-order17/pattern-${{ matrix.pattern }}'
+          if [[ -f "$P/candidate.edges" ]]; then
+            python experiments/tihany/verify_graph_generic.py \
+              "$P/candidate.edges" --output "$P/python-generic.json"
+            experiments/tihany/verify_graph_generic \
+              "$P/candidate.edges" | tee "$P/cpp-generic.log"
+          fi
+      - name: Audit and certify any static UNSAT formula
+        if: always()
+        run: |
+          P='artifacts/exceptional-interface-order17/pattern-${{ matrix.pattern }}'
+          if [[ -f "$P/static.cnf" ]]; then
+            python experiments/tihany/audit_rook_static.py \
+              --pattern '${{ matrix.pattern }}' \
+              --common-rainbow \
+              --cuts "$P/cuts.jsonl" \
+              --static "$P/static.cnf" \
+              --output "$P/static-audit.json"
+            bash experiments/tihany/run_certified.sh \
+              "$P/static.cnf" "$P/certificate"
+          else
+            echo 'No converged static formula in this run.'
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tihany-exceptional-interface-pattern-${{ matrix.pattern }}
+          path: artifacts/exceptional-interface-order17/pattern-${{ matrix.pattern }}
+          retention-days: 90
