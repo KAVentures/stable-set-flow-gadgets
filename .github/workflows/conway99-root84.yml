@@ -1,0 +1,36 @@
+name: Conway99 rooted-84 exact search
+on:
+  push:
+    branches: [research/conway99-root84]
+    paths:
+      - 'research/conway99/**'
+      - '.github/workflows/conway99-root84.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/conway99/**'
+      - '.github/workflows/conway99-root84.yml'
+  workflow_dispatch:
+
+jobs:
+  search:
+    strategy:
+      fail-fast: false
+      matrix:
+        branch: [0, 1]
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'ortools>=9.10'
+      - name: Exact rooted-84 search
+        run: python research/conway99/root84_cp_sat.py --branch ${{ matrix.branch }} --seconds 19800 --workers 4 --out result-${{ matrix.branch }}.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: conway99-root84-branch-${{ matrix.branch }}
+          path: result-${{ matrix.branch }}.json
+          if-no-files-found: warn
