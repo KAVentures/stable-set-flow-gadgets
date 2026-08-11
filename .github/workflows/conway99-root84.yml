@@ -5,6 +5,11 @@ on:
     paths:
       - 'research/conway99/**'
       - '.github/workflows/conway99-root84.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'research/conway99/**'
+      - '.github/workflows/conway99-root84.yml'
   workflow_dispatch:
 
 jobs:
